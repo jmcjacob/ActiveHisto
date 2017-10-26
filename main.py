@@ -38,16 +38,21 @@ def build_dataset(in_dir, out_dir, patch_size, steps, test_percentage, validatio
             for j in range(1, shape[1], steps):
                 min_dist = 2147483647
                 for point in mat:
-                    dist = (math.sqrt(abs(point[0] - (i + border_size)) ** 2)) + \
-                           (math.sqrt(abs(point[1] - (j + border_size)) ** 2))
+                    parta = (point[0] - (i + border_size)) ** 2
+                    partb = (point[1] - (j + border_size)) ** 2
+                    dist = math.sqrt(abs(parta - partb))
                     if dist < min_dist:
                         min_dist = dist
-                if 5 > min_dist and min_dist > 1:
+                if 20 > min_dist and min_dist > 5:
                     continue
-                if min_dist >= 5:
+                if min_dist >= 20:
                     patches.append(image[i:i + patch_size, j:j + patch_size])
                     labels.append(0)
                 else:
+                    thing = orginal_image
+                    cv2.rectangle(thing, (i, j), (i + patch_size, j + patch_size), (0, 0, 255))
+                    cv2.imshow('image', thing)
+                    cv2.waitKey()
                     patches.append(image[i:i + patch_size, j:j + patch_size])
                     labels.append(1)
                 if len(patches) == 100:
@@ -83,7 +88,7 @@ def build_dataset(in_dir, out_dir, patch_size, steps, test_percentage, validatio
 
 
 def main():
-    build_dataset('../Detection_data', '/media/jacob/1742-0054/data', 10, 2, 0.2, 0.1)
+    build_dataset('../Data/Detection', '../Data/Patches', 10, 2, 0.2, 0.1)
 
 
 if __name__ == '__main__':

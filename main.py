@@ -22,22 +22,27 @@ def build_dataset(in_dir, out_dir, patch_size, steps, test_percentage, validatio
     train_counter, test_counter, val_counter = 0, 0, 0
 
     for img_no in range(1, 101):
-        image = cv2.imread(in_dir + '/img' + str(img_no) + '/img' + str(img_no) + '.bmp')
-        shape = image.shape
-        image = cv2.copyMakeBorder(image, border_size, border_size, border_size, border_size,
+        orginal_image = cv2.imread(in_dir + '/img' + str(img_no) + '/img' + str(img_no) + '.bmp')
+        shape = orginal_image.shape
+        image = cv2.copyMakeBorder(orginal_image, border_size, border_size, border_size, border_size,
                                    cv2.BORDER_CONSTANT, value=[0, 0, 0])
         mat = io.loadmat(in_dir + '/img' + str(img_no) + '/img' + str(img_no) + '_detection.mat')['detection']
+
+        # for point in mat:
+        #     cv2.circle(orginal_image, (int(point[0]), int(point[1])), 1, (0, 0, 255))
+        # cv2.imshow('image', orginal_image)
+        # cv2.waitKey(0)
 
         patches, labels = [], []
         for i in range(1, shape[0], steps):
             for j in range(1, shape[1], steps):
                 min_dist = 2147483647
                 for point in mat:
-                    dist = (math.sqrt(abs(point[0] - (i + border_size))) ** 2) + \
-                           (math.sqrt(abs(point[1] - (j + border_size))) ** 2)
+                    dist = (math.sqrt(abs(point[0] - (i + border_size)) ** 2)) + \
+                           (math.sqrt(abs(point[1] - (j + border_size)) ** 2))
                     if dist < min_dist:
                         min_dist = dist
-                if min_dist in range(1, 5):
+                if 5 > min_dist and min_dist > 1:
                     continue
                 if min_dist >= 5:
                     patches.append(image[i:i + patch_size, j:j + patch_size])
@@ -78,7 +83,7 @@ def build_dataset(in_dir, out_dir, patch_size, steps, test_percentage, validatio
 
 
 def main():
-    build_dataset('../Detection_data', '../data', 10, 2, 0.2, 0.1)
+    build_dataset('../Detection_data', '/media/jacob/1742-0054/data', 10, 2, 0.2, 0.1)
 
 
 if __name__ == '__main__':

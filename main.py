@@ -1,7 +1,8 @@
 import os
 import cv2
-import math
+import csv
 import scipy.io as io
+from scipy.spatial import distance
 from sklearn.model_selection import train_test_split
 
 
@@ -28,58 +29,66 @@ def build_dataset(in_dir, out_dir, patch_size, steps, test_percentage, validatio
                                    cv2.BORDER_CONSTANT, value=[0, 0, 0])
         mat = io.loadmat(in_dir + '/img' + str(img_no) + '/img' + str(img_no) + '_detection.mat')['detection']
 
-        # for point in mat:
-        #     cv2.circle(orginal_image, (int(point[0]), int(point[1])), 1, (0, 0, 255))
-        # cv2.imshow('image', orginal_image)
-        # cv2.waitKey(0)
-
         patches, labels = [], []
         for i in range(1, shape[0], steps):
             for j in range(1, shape[1], steps):
                 min_dist = 2147483647
                 for point in mat:
-                    parta = (point[0] - (i + border_size)) ** 2
-                    partb = (point[1] - (j + border_size)) ** 2
-                    dist = math.sqrt(abs(parta - partb))
-                    if dist < min_dist:
-                        min_dist = dist
-                if 20 > min_dist and min_dist > 5:
+                    dist = distance.euclidean(point, (i, j))
+                    if abs(dist) < min_dist:
+                        min_dist = abs(dist)
+                if 20 > min_dist and min_dist > 3:
                     continue
                 if min_dist >= 20:
                     patches.append(image[i:i + patch_size, j:j + patch_size])
                     labels.append(0)
                 else:
-                    thing = orginal_image
-                    cv2.rectangle(thing, (i, j), (i + patch_size, j + patch_size), (0, 0, 255))
-                    cv2.imshow('image', thing)
-                    cv2.waitKey()
+                    # thing = image
+                    # cv2.rectangle(thing, (i, j), (i + patch_size, j + patch_size), (0, 0, 255))
+                    # cv2.imshow('image', thing)
+                    # cv2.waitKey()
                     patches.append(image[i:i + patch_size, j:j + patch_size])
                     labels.append(1)
                 if len(patches) == 100:
-                    train_x, test_x, train_y, test_y = train_test_split(patches, labels, test_size=int(100 * test_percentage))
-                    train_x, val_x, train_y, val_y = train_test_split(train_x, train_y, test_size=int(100 * validation_percentage))
+                    train_x, test_x, train_y, test_y = train_test_split(patches, labels,
+                                                                        test_size=int(100 * test_percentage))
+                    train_x, val_x, train_y, val_y = train_test_split(train_x, train_y,
+                                                                      test_size=int(100 * validation_percentage))
                     for i in range(len(train_x)):
-                        if train_y[i] == 0:
-                            cv2.imwrite(out_dir + '/train/miss/' + str(train_counter) + '.bmp', train_x[i])
-                        else:
-                            cv2.imwrite(out_dir + '/train/hit/' + str(train_counter) + '.bmp', train_x[i])
+                        with open(out_dir + '/train.csv', 'a', newline='') as csvfile:
+                            writer = csv.writer(csvfile, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                            if train_y[i] == 0:
+                                cv2.imwrite(out_dir + '/train/miss/' + str(train_counter) + '.bmp', train_x[i])
+                                writer.writerow([out_dir + '/train/miss/' + str(train_counter) + '.bmp'] + [train_y[i]])
+                            else:
+                                cv2.imwrite(out_dir + '/train/hit/' + str(train_counter) + '.bmp', train_x[i])
+                                writer.writerow([out_dir + '/train/hit/' + str(train_counter) + '.bmp'] + [train_y[i]])
                         train_counter += 1
                     for i in range(len(test_x)):
-                        if test_y[i] == 0:
-                            cv2.imwrite(out_dir + '/test/miss/' + str(train_counter) + '.bmp', test_x[i])
-                        else:
-                            cv2.imwrite(out_dir + '/test/hit/' + str(train_counter) + '.bmp', test_x[i])
+                        with open(out_dir + '/test.csv', 'a', newline='') as csvfile:
+                            writer = csv.writer(csvfile, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                            if test_y[i] == 0:
+                                cv2.imwrite(out_dir + '/test/miss/' + str(test_counter) + '.bmp', test_x[i])
+                                writer.writerow([out_dir + '/test/miss/' + str(test_counter) + '.bmp'] + [test_y[i]])
+                            else:
+                                cv2.imwrite(out_dir + '/test/hit/' + str(test_counter) + '.bmp', test_x[i])
+                                writer.writerow([out_dir + '/test/hit/' + str(test_counter) + '.bmp'] + [test_y[i]])
                         test_counter += 1
                     for i in range(len(val_x)):
-                        if val_y[i] == 0:
-                            cv2.imwrite(out_dir + '/validation/miss/' + str(train_counter) + '.bmp', val_x[i])
-                        else:
-                            cv2.imwrite(out_dir + '/validation/hit/' + str(train_counter) + '.bmp', val_x[i])
+                        with open(out_dir + '/validation.csv', 'a', newline='') as csvfile:
+                            writer = csv.writer(csvfile, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                            if val_y[i] == 0:
+                                cv2.imwrite(out_dir + '/validation/miss/' + str(val_counter) + '.bmp', val_x[i])
+                                writer.writerow([out_dir + '/validation/miss/' + str(val_counter) + '.bmp'] + [val_y[i]])
+                            else:
+                                cv2.imwrite(out_dir + '/validation/hit/' + str(val_counter) + '.bmp', val_x[i])
+                                writer.writerow([out_dir + '/validation/hit/' + str(val_counter) + '.bmp'] + [val_y[i]])
+
                         val_counter += 1
                     patches, labels = [], []
                     if (train_counter + test_counter + val_counter) % 10000 == 0:
                         print(str(train_counter + test_counter + val_counter) + ' Completed!')
-        print('\nImage ' + str(img_no) + ' Completed!')
+        print('Image ' + str(img_no) + ' Completed!\n')
         print(str(train_counter + test_counter + val_counter) + ' Completed!')
     print('Done!')
     print('Training Data: ' + str(train_counter))
@@ -88,7 +97,7 @@ def build_dataset(in_dir, out_dir, patch_size, steps, test_percentage, validatio
 
 
 def main():
-    build_dataset('../Data/Detection', '../Data/Patches', 10, 2, 0.2, 0.1)
+    build_dataset('../Data/Detection', '../Data/Patches', 20, 2, 0.2, 0.1)
 
 
 if __name__ == '__main__':

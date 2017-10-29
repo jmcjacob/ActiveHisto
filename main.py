@@ -1,7 +1,9 @@
 import os
 import cv2
 import csv
+import sys
 import scipy.io as io
+from Data import Data
 from scipy.spatial import distance
 from sklearn.model_selection import train_test_split
 
@@ -43,10 +45,6 @@ def build_dataset(in_dir, out_dir, patch_size, steps, test_percentage, validatio
                     patches.append(image[i:i + patch_size, j:j + patch_size])
                     labels.append(0)
                 else:
-                    # thing = image
-                    # cv2.rectangle(thing, (i, j), (i + patch_size, j + patch_size), (0, 0, 255))
-                    # cv2.imshow('image', thing)
-                    # cv2.waitKey()
                     patches.append(image[i:i + patch_size, j:j + patch_size])
                     labels.append(1)
                 if len(patches) == 100:
@@ -96,9 +94,26 @@ def build_dataset(in_dir, out_dir, patch_size, steps, test_percentage, validatio
     print('Validation Data: ' + str(val_counter))
 
 
-def main():
-    build_dataset('../Data/Detection', '../Data/Patches', 20, 2, 0.2, 0.1)
+def train():
+    data = Data()
+    data.load_data(sys.argv[2])
+
+    # Train a model with all the data for benchmarking purposes
+
+    data.reduce_data(0.99)
 
 
 if __name__ == '__main__':
-    main()
+    print(sys.argv)
+    if sys.argv[1] == 'build':
+        try:
+            build_dataset(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7])
+        except:
+            print('main.py build input_dir output_dir patch_size skip test_size validation_size')
+    if sys.argv[1] == 'train':
+        try:
+            train()
+        except:
+            print('main.py train input_dir')
+    else:
+        print('build or train')

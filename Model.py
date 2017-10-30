@@ -1,8 +1,8 @@
-
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from itertools import product
+from tensorflow.contrib.data import Iterator
 from sklearn.metrics import classification_report
 
 
@@ -89,9 +89,60 @@ class Model:
         self.use_locking = use_locking
         self.centered = centered
 
-    def train(self, train_data, test_data, val_data, epochs=-1, batch_size=100, val_percent=0.1, confuse=False,
-              intervals=10):
-        pass
+    def train(self, train_data, test_data, val_data, epochs=-1, batch_size=100, intervals=10):
+        loss = self.loss()
+        optimizer = self.optimise(loss)
+        correct_pred = tf.equal(tf.argmax(self.model, 1), tf.argmax(self.Y, 1))
+        accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+
+        train_data.batch(batch_size)
+        test_data.batch(batch_size)
+        val_data.batch(batch_size)
+
+        init = tf.global_variables_initializer()
+        iterator = Iterator.from_structure(train_data.output_types, train_data.output_shapes)
+        next_batch = iterator.get_next()
+
+        train_batches_per_epoch = int(np.floor(train_data.data_size / batch_size))
+        test_batches_per_epoch = int(np.floor(test_data.data_size / batch_size))
+        val_batches_per_epoch = int(np.floor(val_data.data_size / batch_size))
+
+        training_init_op = iterator.make_initializer(train_data)
+        testing_init_op = iterator.make_initializer(test_data)
+        validation_init_op = iterator.make_initializer(val_data)
+
+        with tf.Session as sess:
+            sess.run(init)
+            epoch = 0
+            while not self.converged(epochs) and epoch != epochs:
+                sess.run(training_init_op)
+                train_loss = 0
+                for step in range(train_batches_per_epoch):
+                    img_batch, label_batch = sess.run(next_batch)
+                    _, cost = sess.run([optimizer, loss], feed_dict={self.X: img_batch, self.Y: label_batch})
+                    train_loss += cost / train_batches_per_epoch
+                epoch += 1
+                sess.run(validation_init_op)
+                val_loss, val_acc = 0, 0
+                for step in range(val_batches_per_epoch):
+                    img_batch, label_batch = sess.run(next_batch)
+                    acc, cost = sess.run([accuracy, loss], feed_dict={self.X: img_batch, self.Y: label_batch})
+                    val_loss += cost / val_batches_per_epoch
+                    val_acc += cost / val_batches_per_epoch
+                self.losses.append(val_loss)
+                if self.verbose and epoch % intervals == 0:
+                    message = 'Epoch: ' + str(epoch) + ' Training Loss: ' + '{:.4f}'.format(train_loss)
+                    message += ' Validation Accuracy: ' + '{:.3f}'.format(val_acc)
+                    message += ' Validation Loss: ' + '{:.4f}'.format(val_loss)
+                    print(message)
+            sess.run(testing_init_op)
+            test_acc = 0
+            for step in range(test_batches_per_epoch):
+                img_batch, label_batch = sess.run(next_batch)
+                accuracy = sess.run(accuracy, feed_dict={self.X: img_batch, self.Y: label_batch})
+                test_acc += accuracy / test_batches_per_epoch
+        return test_acc
+
 
     @staticmethod
     def confusion_matrix(predictions, labels):

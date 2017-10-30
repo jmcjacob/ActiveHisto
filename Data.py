@@ -61,7 +61,7 @@ class Data:
         one_hot = tf.one_hot(label, 2)
         img_file = tf.read_file(img_path)
         img = tf.image.decode_image(img_file, channels=3)
-        return img, one_hot
+        return img.flatten(), one_hot
 
     def get_weights(self):
         counter = Counter(self.train_y)

@@ -117,14 +117,14 @@ class Model:
             while not self.converged(epochs) and epoch != epochs:
                 sess.run(training_init_op)
                 train_loss = 0
-                for step in range(train_batches_per_epoch):
+                for _ in range(train_batches_per_epoch):
                     img_batch, label_batch = sess.run(next_batch)
                     _, cost = sess.run([optimizer, loss], feed_dict={self.X: img_batch, self.Y: label_batch})
                     train_loss += cost / train_batches_per_epoch
                 epoch += 1
                 sess.run(validation_init_op)
                 val_loss, val_acc = 0, 0
-                for step in range(val_batches_per_epoch):
+                for _ in range(val_batches_per_epoch):
                     img_batch, label_batch = sess.run(next_batch)
                     acc, cost = sess.run([accuracy, loss], feed_dict={self.X: img_batch, self.Y: label_batch})
                     val_loss += cost / val_batches_per_epoch
@@ -143,6 +143,22 @@ class Model:
                 test_acc += accuracy / test_batches_per_epoch
         return test_acc
 
+    def predict(self, data):
+        data.batch(100)
+        iterator = Iterator.from_structure(data.output_types, data.output_shapes)
+        next_batch = iterator.get_next()
+        batches = int(np.floor(data.data_size / 100))
+        data_init_op = iterator.make_initializer(data)
+
+        predictions = []
+        init = tf.global_variables_initializer()
+        with tf.Session() as sess:
+            sess.run(init)
+            sess.run(data_init_op)
+            for _ in range(batches):
+                img_batch = sess.run(next_batch)
+                predictions += sess.run(tf.nn.softmax(self.model), feed_dict={self.X: img_batch}).tolist()
+        return predictions
 
     @staticmethod
     def confusion_matrix(predictions, labels):

@@ -57,11 +57,21 @@ class Data:
         val_dataset = val_dataset.map(self.input_parser, num_threads, buffer_size)
         return train_dataset, test_dataset, val_dataset
 
+    def get_prediction_dataset(self, num_threads, buffer_size):
+        imgs = tf.constant(self.predict_x)
+        predict_dataset = Dataset.from_tensor_slices((imgs))
+        return predict_dataset.map(self.predict_parser, num_threads, buffer_size)
+
     def input_parser(self, img_path, label):
         one_hot = tf.one_hot(label, 2)
         img_file = tf.read_file(img_path)
         img = tf.image.decode_image(img_file, channels=3)
         return img.flatten(), one_hot
+
+    def predict_parser(self, img_path):
+        img_file = tf.read_file(img_path)
+        img = tf.image.decode_image(img_file, channels=3)
+        return img.flatten()
 
     def get_weights(self):
         counter = Counter(self.train_y)

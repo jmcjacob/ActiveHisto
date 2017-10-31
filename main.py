@@ -4,6 +4,7 @@ import csv
 import sys
 import scipy.io as io
 from Data import Data
+from Model import Model
 from scipy.spatial import distance
 from sklearn.model_selection import train_test_split
 
@@ -45,6 +46,7 @@ def build_dataset(in_dir, out_dir, patch_size, steps, test_percentage, validatio
                     patches.append(image[i:i + patch_size, j:j + patch_size])
                     labels.append(0)
                 else:
+                    cv2.rectangle(image, (i, j), (i + patch_size, j + patch_size), (255, 0, 0))
                     patches.append(image[i:i + patch_size, j:j + patch_size])
                     labels.append(1)
                 if len(patches) == 100:
@@ -88,6 +90,7 @@ def build_dataset(in_dir, out_dir, patch_size, steps, test_percentage, validatio
                         print(str(train_counter + test_counter + val_counter) + ' Completed!')
         print('Image ' + str(img_no) + ' Completed!\n')
         print(str(train_counter + test_counter + val_counter) + ' Completed!')
+        cv2.imwrite(out_dir + '/' + str(img_no) + '.bmp', image)
     print('Done!')
     print('Training Data: ' + str(train_counter))
     print('Testing Data: ' + str(test_counter))
@@ -97,23 +100,24 @@ def build_dataset(in_dir, out_dir, patch_size, steps, test_percentage, validatio
 def train():
     data = Data()
     data.load_data(sys.argv[2])
-
-    # Train a model with all the data for benchmarking purposes
-
     data.reduce_data(0.99)
+
+    model = Model(1200, 2)
+    model.set_loss_params(weights=data.get_weights())
+    accuracy, f1 = model.train(data, intervals=1, epochs=1)
+    print('Accuracy: ' + str(accuracy))
+    print('F1-Score: ' + str(f1))
+
+
 
 
 if __name__ == '__main__':
-    print(sys.argv)
     if sys.argv[1] == 'build':
         try:
-            build_dataset(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7])
+            build_dataset(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]), float(sys.argv[6]), float(sys.argv[7]))
         except:
             print('main.py build input_dir output_dir patch_size skip test_size validation_size')
     if sys.argv[1] == 'train':
-        try:
-            train()
-        except:
-            print('main.py train input_dir')
+        train()
     else:
         print('build or train')

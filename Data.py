@@ -40,7 +40,16 @@ class Data:
             self.val_x.append(dir + 'validation/miss/' + image_file)
             self.val_y.append(0)
 
-    def get_datasets(self, num_threads, buffer_size):
+    def get_sizes(self, batch_size):
+        train_batch = int(np.floor(len(self.train_y) / batch_size))
+        test_batch = int(np.floor(len(self.test_y) / (batch_size * 100)))
+        val_batch = int(np.floor(len(self.val_y) / (batch_size * 100)))
+        return train_batch, test_batch, val_batch
+
+    def get_predict_size(self, batch_size):
+        return int(np.floor(len(self.predict_y) / batch_size))
+
+    def get_datasets(self, num_threads, buffer_size, batch_size):
         train_imgs = tf.constant(self.train_x)
         train_labels = tf.constant(self.train_y)
         train_dataset = Dataset.from_tensor_slices((train_imgs, train_labels))
@@ -55,23 +64,29 @@ class Data:
         val_labels = tf.constant(self.val_y)
         val_dataset = Dataset.from_tensor_slices((val_imgs, val_labels))
         val_dataset = val_dataset.map(self.input_parser, num_threads, buffer_size)
-        return train_dataset, test_dataset, val_dataset
 
-    def get_prediction_dataset(self, num_threads, buffer_size):
+        train_dataset = train_dataset.batch(batch_size)
+        test_dataset = test_dataset.batch(batch_size * 100)
+        val_dataset = val_dataset.batch(batch_size * 100)
+
+        return train_dataset.shuffle(10000), test_dataset, val_dataset
+
+    def get_prediction_dataset(self, num_threads, buffer_size, batch_size):
         imgs = tf.constant(self.predict_x)
         predict_dataset = Dataset.from_tensor_slices((imgs))
-        return predict_dataset.map(self.predict_parser, num_threads, buffer_size)
+        predict_dataset = predict_dataset.map(self.predict_parser, num_threads, buffer_size)
+        return predict_dataset.batch(batch_size)
 
     def input_parser(self, img_path, label):
         one_hot = tf.one_hot(label, 2)
         img_file = tf.read_file(img_path)
         img = tf.image.decode_image(img_file, channels=3)
-        return img.flatten(), one_hot
+        return tf.reshape(img, [1200]), one_hot
 
     def predict_parser(self, img_path):
         img_file = tf.read_file(img_path)
         img = tf.image.decode_image(img_file, channels=3)
-        return img.flatten()
+        return tf.reshape(img, [1200])
 
     def get_weights(self):
         counter = Counter(self.train_y)

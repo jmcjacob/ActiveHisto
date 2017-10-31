@@ -3,7 +3,7 @@ import pandas as pd
 import tensorflow as tf
 from itertools import product
 from tensorflow.contrib.data import Iterator
-from sklearn.metrics import classification_report
+import sklearn.metrics
 
 
 class Model:
@@ -18,6 +18,9 @@ class Model:
 
         self.verbose = verbose
         self.losses = []
+
+        self.set_loss_params()
+        self.set_optimise_params()
 
     def __copy__(self):
         model = Model(self.input_shape, self.num_classes, self.verbose)
@@ -89,46 +92,44 @@ class Model:
         self.use_locking = use_locking
         self.centered = centered
 
-    def train(self, train_data, test_data, val_data, epochs=-1, batch_size=100, intervals=10):
+    def train(self, data, epochs=-1, batch_size=100, intervals=10):
         loss = self.loss()
         optimizer = self.optimise(loss)
         correct_pred = tf.equal(tf.argmax(self.model, 1), tf.argmax(self.Y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-        train_data.batch(batch_size)
-        test_data.batch(batch_size)
-        val_data.batch(batch_size)
+        train_data, test_data, val_data = data.get_datasets(4, 10000, batch_size)
 
         init = tf.global_variables_initializer()
-        iterator = Iterator.from_structure(train_data.output_types, train_data.output_shapes)
-        next_batch = iterator.get_next()
+        train_iterator = Iterator.from_structure(train_data.output_types, train_data.output_shapes)
+        train_next_batch = train_iterator.get_next()
+        test_iterator = Iterator.from_structure(test_data.output_types, test_data.output_shapes)
+        test_next_batch = test_iterator.get_next()
 
-        train_batches_per_epoch = int(np.floor(train_data.data_size / batch_size))
-        test_batches_per_epoch = int(np.floor(test_data.data_size / batch_size))
-        val_batches_per_epoch = int(np.floor(val_data.data_size / batch_size))
+        train_batches, test_batches, val_batches = data.get_sizes(batch_size)
 
-        training_init_op = iterator.make_initializer(train_data)
-        testing_init_op = iterator.make_initializer(test_data)
-        validation_init_op = iterator.make_initializer(val_data)
+        training_init_op = train_iterator.make_initializer(train_data)
+        testing_init_op = test_iterator.make_initializer(test_data)
+        validation_init_op = test_iterator.make_initializer(val_data)
 
-        with tf.Session as sess:
+        with tf.Session() as sess:
             sess.run(init)
             epoch = 0
             while not self.converged(epochs) and epoch != epochs:
                 sess.run(training_init_op)
                 train_loss = 0
-                for _ in range(train_batches_per_epoch):
-                    img_batch, label_batch = sess.run(next_batch)
+                for _ in range(train_batches):
+                    img_batch, label_batch = sess.run(train_next_batch)
                     _, cost = sess.run([optimizer, loss], feed_dict={self.X: img_batch, self.Y: label_batch})
-                    train_loss += cost / train_batches_per_epoch
+                    train_loss += cost / train_batches
                 epoch += 1
                 sess.run(validation_init_op)
                 val_loss, val_acc = 0, 0
-                for _ in range(val_batches_per_epoch):
-                    img_batch, label_batch = sess.run(next_batch)
+                for _ in range(val_batches):
+                    img_batch, label_batch = sess.run(test_next_batch)
                     acc, cost = sess.run([accuracy, loss], feed_dict={self.X: img_batch, self.Y: label_batch})
-                    val_loss += cost / val_batches_per_epoch
-                    val_acc += cost / val_batches_per_epoch
+                    val_loss += cost / val_batches
+                    val_acc += acc / val_batches
                 self.losses.append(val_loss)
                 if self.verbose and epoch % intervals == 0:
                     message = 'Epoch: ' + str(epoch) + ' Training Loss: ' + '{:.4f}'.format(train_loss)
@@ -137,18 +138,22 @@ class Model:
                     print(message)
             sess.run(testing_init_op)
             test_acc = 0
-            for step in range(test_batches_per_epoch):
-                img_batch, label_batch = sess.run(next_batch)
-                accuracy = sess.run(accuracy, feed_dict={self.X: img_batch, self.Y: label_batch})
-                test_acc += accuracy / test_batches_per_epoch
-        return test_acc
+            prediction, labels = [], []
+            for step in range(test_batches):
+                img_batch, label_batch = sess.run(test_next_batch)
+                acc, y_pred = sess.run([accuracy, tf.nn.softmax(self.model)], feed_dict={self.X: img_batch, self.Y: label_batch})
+                test_acc += acc / test_batches
+                for i in range(len(label_batch)):
+                    labels.append(np.argmax(label_batch[i]))
+                    prediction.append(np.argmax(y_pred[i]))
+        return test_acc, sklearn.metrics.f1_score(labels, prediction)
 
     def predict(self, data):
-        data.batch(100)
-        iterator = Iterator.from_structure(data.output_types, data.output_shapes)
+        predict_data = data.get_prediction_dataset(2, 10000, 100)
+        iterator = Iterator.from_structure(predict_data.output_types, predict_data.output_shapes)
         next_batch = iterator.get_next()
-        batches = int(np.floor(data.data_size / 100))
-        data_init_op = iterator.make_initializer(data)
+        batches = data.get_predict_size()
+        data_init_op = iterator.make_initializer(predict_data)
 
         predictions = []
         init = tf.global_variables_initializer()
@@ -176,7 +181,7 @@ class Model:
         df_confusion = pd.crosstab(t_labels, p_labels, rownames=['Actual'], colnames=['Predicted'], margins=True)
 
         print(df_confusion)
-        print(classification_report(y_actu, y_pred, digits=4))
+        print(sklearn.metrics.classification_report(y_actu, y_pred, digits=4))
 
     def converged(self, epochs, min_epochs=50, diff=0.5, converge_len=10):
         if len(self.losses) > min_epochs and epochs == -1:

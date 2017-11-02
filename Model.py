@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
+import sklearn.metrics
 import tensorflow as tf
 from itertools import product
 from tensorflow.contrib.data import Iterator
-import sklearn.metrics
 
 
 class Model:

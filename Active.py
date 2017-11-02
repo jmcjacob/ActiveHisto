@@ -8,7 +8,7 @@ class Active:
         self.model = model
         self.budget = budget
         self.quality = quality
-        self.accuracy = 0.0
+        self.f1 = 0.0
         self.questions_asked = 0
         self.values = np.zeros((len(self.data.predict_x)))
 
@@ -22,9 +22,8 @@ class Active:
         model = self.new_model()
         if not self.model.loss_weights.shape == np.ones((0, 0)).shape:
             model.set_loss_params(weights=data.get_weights())
-        train_data, test_data, val_data = data.get_datasets(2, 100)
-        accuracy = model.train(train_data, test_data, val_data)
-        return accuracy, model.predict(data.get_prediction_dataset(2, 100))
+        accuracy, f1 = model.train(data)
+        return f1, model.predict(data)
 
     def ranking(self, predictions, number_bootstraps):
         for j in range(len(predictions)):
@@ -56,11 +55,11 @@ class Active:
         return indexes
 
     def run(self, number_bootstraps, bootstrap_size, batch_size):
-        accuracies = []
-        self.accuracy, _ = self.train_predict(self.data)
-        accuracies.append(self.accuracy)
+        f1s = []
+        self.f1, _ = self.train_predict(self.data)
+        f1s.append(self.f1)
 
-        while self.budget != self.questions_asked and self.quality > self.accuracy:
+        while self.budget != self.questions_asked and self.quality > self.f1:
             self.values = np.zeros((len(self.data.predict_x)))
             bootstraps = self.data.get_bootstraps(number_bootstraps, bootstrap_size)
             for i in range(len(bootstraps)):
@@ -70,7 +69,7 @@ class Active:
             indexes = self.get_indexes(batch_size)
             self.data.increase_data(indexes)
             self.questions_asked = self.questions_asked + 1
-            self.accuracy, _ = self.train_predict(self.data)
-            accuracies.append(self.accuracy)
+            self.f1, _ = self.train_predict(self.data)
+            f1s.append(self.f1)
 
-        return accuracies
+        return f1s

@@ -8,13 +8,14 @@ from sklearn.model_selection import train_test_split
 
 
 class Data:
-    def __init__(self):
+    def __init__(self, val_percentage):
         self.train_x, self.train_y = [], []
         self.test_x, self.test_y = [], []
-        self.val_x, self.val_y = [], []
+        self.val_percentage = val_percentage
 
     def set_data(self, train_x, train_y):
         self.train_x, self.train_y = train_x, train_y
+        self.make_val_set(self.val_percentage)
 
     def load_data(self, dir):
         if dir[-1] != '/':
@@ -32,13 +33,11 @@ class Data:
         for image_file in os.listdir(dir + 'test/miss'):
             self.test_x.append(dir + 'test/miss/' + image_file)
             self.test_y.append(0)
+        self.make_val_set(self.val_percentage)
 
-        for image_file in os.listdir(dir + 'validation/hit'):
-            self.val_x.append(dir + 'validation/hit/' + image_file)
-            self.val_y.append(1)
-        for image_file in os.listdir(dir + 'validation/miss'):
-            self.val_x.append(dir + 'validation/miss/' + image_file)
-            self.val_y.append(0)
+    def make_val_set(self, percentage):
+        self.train_x, self.val_x, self.train_y, self.val_y = train_test_split(self.train_x, self.train_y,
+                                                                              test_size=percentage)
 
     def get_sizes(self, batch_size):
         train_batch = int(np.floor(len(self.train_y) / batch_size))
@@ -113,14 +112,19 @@ class Data:
             for index in indexs:
                 bootstrap_x.append(self.train_x[index])
                 bootstrap_y.append(self.train_y[index])
-            data = Data()
+            data = Data(self.val_percentage)
             data.set_data(np.asarray(bootstrap_x), np.asarray(bootstrap_y))
             bootstraps.append(data)
         return bootstraps
 
     def increase_data(self, indexes):
+        self.train_x += self.val_x
+        self.train_y += self.val_y
+        self.val_x, self.val_y = [], []
         for index in indexes:
             self.train_x = np.vstack((self.train_x, [self.predict_x[index]]))
             self.train_y = np.vstack((self.train_y, [self.predict_y[index]]))
         self.predict_x = np.delete(self.predict_x, indexes, axis=0)
         self.predict_y = np.delete(self.predict_y, indexes, axis=0)
+        self.make_val_set(self.val_percentage)
+

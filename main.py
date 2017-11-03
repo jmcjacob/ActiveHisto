@@ -9,13 +9,6 @@ from Active import Active
 from scipy.spatial import distance
 
 
-with open('eggs.csv', 'w', newline='') as csvfile:
-    spamwriter = csv.writer(csvfile, delimiter=' ',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-    spamwriter.writerow(['Spam'] * 5 + ['Baked Beans'])
-    spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
-
-
 def build_regression_dataset(in_dir, out_dir, patch_size, steps, test_percentage):
     if in_dir[-1] != '/':
         in_dir += '/'
@@ -142,25 +135,32 @@ def build_detection_dataset(in_dir, out_dir, patch_size, steps, test_percentage)
 def train():
     data = Data(0.05)
     data.load_data(sys.argv[2])
+    print('Original Data size: ' + str(len(data.train_y)))
+
+    # model = Model(1200, 2)
+    # model.set_loss_params(weights=data.get_weights())
+    #
+    # accuracy, f1 = model.train(data, intervals=1, batch_size=100)
+    # print('Accuracy: ' + str(accuracy))
+    # print('F1-Score: ' + str(f1))
+
     data.reduce_data(0.99)
+    print('\nNew Data size: ' + str(len(data.train_y)))
 
     model = Model(1200, 2)
     model.set_loss_params(weights=data.get_weights())
+
     active = Active(data, model, 2, 1.00)
     f1_scores = active.run(5, 500, 100)
     print(f1_scores)
 
-    # accuracy, f1 = model.train(data, intervals=1, epochs=1)
-    # print('Accuracy: ' + str(accuracy))
-    # print('F1-Score: ' + str(f1))
-
 
 if __name__ == '__main__':
-    if sys.argv[1] == 'detect':
+    if sys.argv[1] == 'classification':
         build_detection_dataset(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]), float(sys.argv[6]))
     elif sys.argv[1] == 'regression':
         build_regression_dataset(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]), float(sys.argv[6]))
     elif sys.argv[1] == 'train':
         train()
     else:
-        print('build or train')
+        print('classification, regression or train')

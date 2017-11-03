@@ -15,7 +15,7 @@ class Active:
     def new_model(self):
         return copy.copy(self.model)
 
-    def train_predict(self, data, verbose=True):
+    def train_predict(self, data, prediction, verbose=True):
         if verbose:
             print('\nQuestions asked: ' + str(self.questions_asked))
             print('Data length: ' + str(len(data.train_x)))
@@ -23,7 +23,10 @@ class Active:
         if not self.model.loss_weights.shape == np.ones((0, 0)).shape:
             model.set_loss_params(weights=data.get_weights())
         accuracy, f1 = model.train(data)
-        return f1, model.predict(data)
+        if prediction:
+            return f1, model.predict(data)
+        else:
+            return f1
 
     def ranking(self, predictions, number_bootstraps):
         for j in range(len(predictions)):
@@ -56,7 +59,7 @@ class Active:
 
     def run(self, number_bootstraps, bootstrap_size, batch_size):
         f1s = []
-        self.f1, _ = self.train_predict(self.data)
+        self.f1 = self.train_predict(self.data, False)
         f1s.append(self.f1)
 
         while self.budget != self.questions_asked and self.quality > self.f1:
@@ -64,12 +67,12 @@ class Active:
             bootstraps = self.data.get_bootstraps(number_bootstraps, bootstrap_size)
             for i in range(len(bootstraps)):
                 print('\nBootstrap: ' + str(i))
-                _, predictions = self.train_predict(bootstraps[i], verbose=False)
+                _, predictions = self.train_predict(bootstraps[i], True, verbose=False)
                 self.ranking(predictions, number_bootstraps)
             indexes = self.get_indexes(batch_size)
             self.data.increase_data(indexes)
             self.questions_asked = self.questions_asked + 1
-            self.f1, _ = self.train_predict(self.data)
+            self.f1, _ = self.train_predict(self.data, False)
             f1s.append(self.f1)
 
         return f1s

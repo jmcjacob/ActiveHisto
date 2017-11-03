@@ -118,7 +118,7 @@ class Model:
             while not self.converged(epochs) and epoch != epochs:
                 sess.run(training_init_op)
                 train_loss = 0
-                for _ in range(train_batches):
+                for step in range(train_batches):
                     img_batch, label_batch = sess.run(train_next_batch)
                     _, cost = sess.run([optimizer, loss], feed_dict={self.X: img_batch, self.Y: label_batch})
                     train_loss += cost / train_batches
@@ -146,13 +146,21 @@ class Model:
                 for i in range(len(label_batch)):
                     labels.append(np.argmax(label_batch[i]))
                     prediction.append(np.argmax(y_pred[i]))
+
+        # p_labels = pd.Series(prediction)
+        # t_labels = pd.Series(labels)
+        # df_confusion = pd.crosstab(t_labels, p_labels, rownames=['Actual'], colnames=['Predicted'], margins=True)
+        #
+        # print(df_confusion)
+        # print(sklearn.metrics.classification_report(labels, prediction, digits=4))
+
         return test_acc, sklearn.metrics.f1_score(labels, prediction)
 
     def predict(self, data):
         predict_data = data.get_prediction_dataset(2, 10000, 100)
         iterator = Iterator.from_structure(predict_data.output_types, predict_data.output_shapes)
         next_batch = iterator.get_next()
-        batches = data.get_predict_size()
+        batches = data.get_predict_size(1000)
         data_init_op = iterator.make_initializer(predict_data)
 
         predictions = []
@@ -160,7 +168,7 @@ class Model:
         with tf.Session() as sess:
             sess.run(init)
             sess.run(data_init_op)
-            for _ in range(batches):
+            for step in range(batches):
                 img_batch = sess.run(next_batch)
                 predictions += sess.run(tf.nn.softmax(self.model), feed_dict={self.X: img_batch}).tolist()
         return predictions
@@ -183,7 +191,7 @@ class Model:
         print(df_confusion)
         print(sklearn.metrics.classification_report(y_actu, y_pred, digits=4))
 
-    def converged(self, epochs, min_epochs=50, diff=0.5, converge_len=10):
+    def converged(self, epochs, min_epochs=10, diff=0.5, converge_len=10):
         if len(self.losses) > min_epochs and epochs == -1:
             losses = self.losses[-converge_len:]
 

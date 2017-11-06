@@ -2,6 +2,7 @@ import os
 import cv2
 import csv
 import sys
+import random
 import scipy.io as io
 from Data import Data
 from Model import Model
@@ -114,7 +115,14 @@ def build_detection_dataset(in_dir, out_dir, patch_size, steps, test_percentage)
                     thing = 'train/'
                     train_count += 1
                 patch = border_image[j:j + patch_size, i: i + patch_size]
-                cv2.imwrite(out_dir + thing + label + str(img_no) + '_' + str(i) + ',' + str(j) + '.bmp', patch)
+                if label == 'hit/':
+                    patches = [patch, cv2.flip(patch, 0), cv2.flip(patch, 1), cv2.flip(patch, 2),
+                               cv2.GaussianBlur(src=patch, ksize=(3, 3), sigmaX=0.25),
+                               cv2.medianBlur(src=patch, ksize=3)]
+                    for p in range(len(patches)):
+                        cv2.imwrite(out_dir + thing + label + str(img_no) + '_' + str(i) + ',' + str(j) + str(p) + '.bmp', patches[p])
+                else:
+                    cv2.imwrite(out_dir + thing + label + str(img_no) + '_' + str(i) + ',' + str(j) + '.bmp', patch)
 
                 if patches_count == 10:
                     patches_count = 0
@@ -127,6 +135,11 @@ def build_detection_dataset(in_dir, out_dir, patch_size, steps, test_percentage)
         print('Image ' + str(img_no) + ' Completed!\n')
         print(str(train_count + test_count) + ' Completed!')
         cv2.imwrite(out_dir + '/' + str(img_no) + '.bmp', original_image)
+
+    while os.walk(out_dir + 'train/miss/').__next__()[2] != os.walk(out_dir + 'train/hit/').__next__()[2]:
+        os.remove(out_dir + 'train/miss/' + random.choice(os.listdir(out_dir + 'train/miss/')))
+        train_count -= 1
+
     print('\nDone!')
     print('Training Data: ' + str(train_count))
     print('Testing Data: ' + str(test_count))

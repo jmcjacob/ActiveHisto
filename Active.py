@@ -39,7 +39,7 @@ class Active:
         indexes = []
         if self.data.balance:
             num_to_label = int(batch_size / 10)
-            classification = [[], [], [], [], [], [], [], [], [], []]
+            classification = [[], []]
             for i in range(len(self.values)):
                 prediction_class = int(np.argmax(self.data.predict_y[i]))
                 classification[prediction_class].append([self.values[i], i])

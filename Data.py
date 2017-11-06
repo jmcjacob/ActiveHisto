@@ -77,7 +77,7 @@ class Data:
         return predict_dataset.batch(batch_size)
 
     def input_parser(self, img_path, label):
-        one_hot = tf.one_hot(label, 2)
+        one_hot = tf.one_hot(tf.to_int32(label), 2)
         img_file = tf.read_file(img_path)
         img = tf.image.decode_image(img_file, channels=3)
         return tf.reshape(img, [1200]), one_hot
@@ -112,6 +112,11 @@ class Data:
             for index in indexs:
                 bootstrap_x.append(self.train_x[index])
                 bootstrap_y.append(self.train_y[index])
+            while bootstrap_y[1:] == bootstrap_y[:-1]:
+                index = random.randint(len(bootstrap_y) -1)
+                bootstrap_x.remove(index)
+                bootstrap_y.remove(index)
+                # TO-DO Add element to dataset.
             data = Data(self.val_percentage)
             data.set_data(np.asarray(bootstrap_x), np.asarray(bootstrap_y))
             bootstraps.append(data)

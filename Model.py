@@ -157,21 +157,24 @@ class Model:
         return test_acc, sklearn.metrics.f1_score(labels, prediction)
 
     def predict(self, data):
-        predict_data = data.get_prediction_dataset(2, 10000, 100)
-        iterator = Iterator.from_structure(predict_data.output_types, predict_data.output_shapes)
-        next_batch = iterator.get_next()
-        batches = data.get_predict_size(1000)
-        data_init_op = iterator.make_initializer(predict_data)
+        slice_predictions = []
+        for i in range(len(data.data_y)):
+            predict_data = data.get_prediction_dataset(2, 10000, 100, i)
+            iterator = Iterator.from_structure(predict_data.output_types, predict_data.output_shapes)
+            next_batch = iterator.get_next()
+            batches = data.get_predict_size(1000)
+            data_init_op = iterator.make_initializer(predict_data)
 
-        predictions = []
-        init = tf.global_variables_initializer()
-        with tf.Session() as sess:
-            sess.run(init)
-            sess.run(data_init_op)
-            for step in range(batches):
-                img_batch = sess.run(next_batch)
-                predictions += sess.run(tf.nn.softmax(self.model), feed_dict={self.X: img_batch}).tolist()
-        return predictions
+            predictions = []
+            init = tf.global_variables_initializer()
+            with tf.Session() as sess:
+                sess.run(init)
+                sess.run(data_init_op)
+                for step in range(batches):
+                    img_batch = sess.run(next_batch)
+                    predictions += sess.run(tf.nn.softmax(self.model), feed_dict={self.X: img_batch}).tolist()
+            slice_predictions.append(predictions)
+        return slice_predictions
 
     @staticmethod
     def confusion_matrix(predictions, labels):

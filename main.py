@@ -71,28 +71,24 @@ def build_regression_dataset(in_dir, out_dir, patch_size, steps, test_percentage
     print('Testing Data: ' + str(test_count))
 
 
-def build_detection_dataset(in_dir, out_dir, patch_size, steps, test_percentage):
+def build_detection_dataset(in_dir, out_dir, patch_size, steps):
     if in_dir[-1] != '/':
         in_dir += '/'
     if out_dir[-1] != '/':
         out_dir += '/'
-    if not os.path.exists(out_dir + 'train'):
-        os.makedirs(out_dir + 'train/miss')
-        os.makedirs(out_dir + 'train/hit')
-    if not os.path.exists(out_dir + 'test'):
-        os.makedirs(out_dir + 'test/miss')
-        os.makedirs(out_dir + 'test/hit')
 
     border_size = patch_size // 2
-    train_count, test_count = 0, 0
+    count = 0
 
     for img_no in range(1, len(os.listdir(in_dir)) + 1):
+        if not os.path.exists(out_dir + str(img_no) + '/'):
+            os.makedirs(out_dir + str(img_no) + '/hit/')
+            os.makedirs(out_dir + str(img_no) + '/miss/')
         original_image = cv2.imread(in_dir + 'img' + str(img_no) + '/img' + str(img_no) + '.bmp')
         border_image = cv2.copyMakeBorder(original_image, border_size, border_size, border_size, border_size,
                                           cv2.BORDER_DEFAULT)
         points = io.loadmat(in_dir + 'img' + str(img_no) + '/img' + str(img_no) + '_detection.mat')['detection']
         shape = original_image.shape
-        patches_count, test_patches = 0, 10 - (10 * test_percentage)
         for i in range(0, shape[0], steps):
             for j in range(0, shape[1], steps):
                 min_dist = 100
@@ -108,41 +104,26 @@ def build_detection_dataset(in_dir, out_dir, patch_size, steps, test_percentage)
                     label = 'miss/'
                 else:
                     continue
-                if patches_count > test_patches:
-                    thing = 'test/'
-                    test_count += 1
-                else:
-                    thing = 'train/'
-                    train_count += 1
                 patch = border_image[j:j + patch_size, i: i + patch_size]
                 if label == 'hit/':
                     patches = [patch, cv2.flip(patch, 0), cv2.flip(patch, 1), cv2.flip(patch, 2),
                                cv2.GaussianBlur(src=patch, ksize=(3, 3), sigmaX=0.25),
                                cv2.medianBlur(src=patch, ksize=3)]
                     for p in range(len(patches)):
-                        cv2.imwrite(out_dir + thing + label + str(img_no) + '_' + str(i) + ',' + str(j) + str(p) + '.bmp', patches[p])
+                        cv2.imwrite(out_dir + str(img_no) + '/' + label + str(i) + ',' + str(j) + str(p) + '.bmp', patches[p])
+                        count += 1
                 else:
-                    cv2.imwrite(out_dir + thing + label + str(img_no) + '_' + str(i) + ',' + str(j) + '.bmp', patch)
+                    cv2.imwrite(out_dir + str(img_no) + '/' + label + str(i) + ',' + str(j) + '.bmp', patch)
+                    count += 1
 
-                if patches_count == 10:
-                    patches_count = 0
-                else:
-                    patches_count += 1
-
-                if (train_count + test_count) % 10000 == 0:
-                    print(str(train_count + test_count) + ' Completed!')
+                if (count) % 10000 == 0:
+                    print(str(count) + ' Completed!')
 
         print('Image ' + str(img_no) + ' Completed!\n')
-        print(str(train_count + test_count) + ' Completed!')
         cv2.imwrite(out_dir + '/' + str(img_no) + '.bmp', original_image)
 
-    while os.walk(out_dir + 'train/miss/').__next__()[2] != os.walk(out_dir + 'train/hit/').__next__()[2]:
-        os.remove(out_dir + 'train/miss/' + random.choice(os.listdir(out_dir + 'train/miss/')))
-        train_count -= 1
-
     print('\nDone!')
-    print('Training Data: ' + str(train_count))
-    print('Testing Data: ' + str(test_count))
+    print('Number of patches: ' + str(count))
 
 
 def train():
@@ -170,7 +151,7 @@ def train():
 
 if __name__ == '__main__':
     if sys.argv[1] == 'classification':
-        build_detection_dataset(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]), float(sys.argv[6]))
+        build_detection_dataset(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]))
     elif sys.argv[1] == 'regression':
         build_regression_dataset(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]), float(sys.argv[6]))
     elif sys.argv[1] == 'train':

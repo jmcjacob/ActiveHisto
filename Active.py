@@ -12,14 +12,16 @@ class Active:
         self.questions_asked = 0
         self.slide_uncertainty = np.zeros((len(self.data.data_y), len(self.data.data_y[0])))
 
-    def new_model(self):
-        return copy.copy(self.model)
+    def new_model(self, verbose):
+        model = copy.copy(self.model)
+        model.verbose = verbose
+        return model
 
     def train(self, data, verbose=True):
         if verbose:
             print('\nQuestions asked: ' + str(self.questions_asked))
             print('\nData length: ' + str(len(data.train_y)))
-        model = self.new_model()
+        model = self.new_model(verbose)
         if not self.model.loss_weights.shape == np.ones((0, 0)).shape:
             model.set_loss_params(weights=data.get_weights())
         return model.train(data)
@@ -28,7 +30,7 @@ class Active:
         if verbose:
             print('\nQuestions asked: ' + str(self.questions_asked))
             print('\nData length: ' + str(len(data.train_y)))
-        model = self.new_model()
+        model = self.new_model(verbose)
         if not self.model.loss_weights.shape == np.ones((0, 0)).shape:
             model.set_loss_params(weights=data.get_weights())
         accuracy, f1_score = model.train(data)
@@ -57,12 +59,12 @@ class Active:
 
     def run(self, num_bootstraps, bootstap_size, batch_size):
         f1_scores = []
-        _, self.f1_score = self.train(self.data)
-        f1_scores.append(self.f1_score)
+        # _, self.f1_score = self.train(self.data)
+        # f1_scores.append(self.f1_score)
 
         while self.budget != self.questions_asked and self.target > self.f1_score:
             self.slide_uncertainty = np.zeros((len(self.data.data_y), len(self.data.data_y[0])))
-            bootstraps = self.data.get_bootstraps(num_bootstraps, bootstap_size)
+            bootstraps = self.data.get_bootstraps(num_bootstraps, bootstap_size, 0.2)
             for i in range(num_bootstraps):
                 print('\nBootstrap: ' + str(i))
                 predictions = self.train_predict(bootstraps[i], verbose=False)

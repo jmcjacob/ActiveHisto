@@ -15,6 +15,13 @@ class Data:
         self.data_x, self.data_y = [], []
         self.val_percentage = val_percentage
 
+    def __copy__(self):
+        data = Data(self.val_percentage)
+        data.data_x = self.train_x + self.val_x
+        data.data_y = self.train_y + self.val_y
+        data.test_x, data.test_y = self.test_x, self.test_y
+        return data
+
     def load_test_data(self, test_dir):
         for image_dir in os.listdir(test_dir):
             if os.path.isdir(test_dir + image_dir):
@@ -38,46 +45,50 @@ class Data:
                 self.data_x.append(temp_x)
                 self.data_y.append(temp_y)
 
-    def make_val_set(self, percentage):
+    def make_val_set(self):
+        self.train_x += self.val_x
+        self.train_y += self.val_y
         self.train_x, self.val_x, self.train_y, self.val_y = train_test_split(self.train_x, self.train_y,
-                                                                              test_size=percentage)
+                                                                              test_size=self.val_percentage)
 
     def set_random_training_data(self, number):
         for _ in range(number):
-            index = random.randint(len(self.data_y) - 1)
+            index = random.randint(0, len(self.data_y) - 1)
             self.train_x += self.data_x[index]
             self.train_y += self.data_y[index]
-            self.data_x.remove(index)
-            self.data_y.remove(index)
+            self.data_x.pop(index)
+            self.data_y.pop(index)
+        self.make_val_set()
 
     def set_training_data(self, indices):
         if type(indices) != int:
-            for index in indices:
+            for index in sorted(indices, reverse=True):
                 self.train_x += self.data_x[index]
                 self.train_y += self.data_y[index]
-                self.data_x.remove(index)
-                self.data_y.remove(index)
+                self.data_x.pop(index)
+                self.data_y.pop(index)
         else:
             self.train_x += self.data_x[indices]
             self.train_y += self.data_y[indices]
-            self.data_x.remove(indices)
-            self.data_y.remove(indices)
+            self.data_x.pop(indices)
+            self.data_y.pop(indices)
+        self.make_val_set()
 
     def set_data(self, train_x, train_y):
         self.train_x, self.train_y = train_x, train_y
-        self.make_val_set(self.val_percentage)
+        self.make_val_set()
 
     def get_num_batches(self, train_batch_size, test_batch_size):
-        train_batch = int(np.floor(len(self.train_y) / train_batch_size))
-        test_batch = int(np.floor(len(self.test_y) / (test_batch_size)))
-        val_batch = int(np.floor(len(self.val_y) / (test_batch_size)))
+        train_batch = int(np.ceil(len(self.train_y) / train_batch_size))
+        test_batch = int(np.ceil(len(self.test_y) / (test_batch_size)))
+        val_batch = int(np.ceil(len(self.val_y) / (test_batch_size)))
         return train_batch, test_batch, val_batch
 
     def get_num_predict_batches(self, batch_size, index):
-        return int(np.floor(len(self.data_y[index]) / batch_size))
+        return int(np.ceil(len(self.data_y[index]) / batch_size))
 
     def input_parser(self, image_path, label):
-        one_hot_label = tf.constant(tf.to_int32(label), 2)
+        one_hot_label = tf.one_hot(tf.to_int32(label), 2)
         image_file = tf.read_file(image_path)
         image = tf.image.decode_image(image_file, channels=3)
         return tf.reshape(image, [1200]), one_hot_label
@@ -88,8 +99,8 @@ class Data:
         return tf.reshape(image, [1200])
 
     def get_datasets(self, num_threads, buffer_size, train_batch_size, test_batch_size):
-        train_images = tf.constant(self.train_x)
-        train_labels = tf.constant(self.train_y)
+        train_images = tf.constant(np.asarray(self.train_x))
+        train_labels = tf.constant(np.asarray(self.train_y))
         train_dataset = tf_data.Dataset.from_tensor_slices((train_images, train_labels))
         train_dataset = train_dataset.map(self.input_parser, num_threads, buffer_size)
 
@@ -126,7 +137,7 @@ class Data:
             final_weights[class_idx][0] = class_weight
         return final_weights
 
-    def get_bootstraps(self, num_bootstraps, bootstrap_size):
+    def get_bootstraps(self, num_bootstraps, bootstrap_size, val_percentage):
         bootstraps = []
         for _ in range(num_bootstraps):
             bootstrap_x, bootstrap_y = [], []
@@ -134,7 +145,9 @@ class Data:
             for index in indices:
                 bootstrap_x.append(self.train_x[index])
                 bootstrap_y.append(self.train_y[index])
-            data = Data(self.val_percentage)
+            data = Data(val_percentage)
             data.set_data(bootstrap_x, bootstrap_y)
+            data.test_x, data.test_y = self.test_x, self.test_y
+            data.data_x, data.data_y = self.data_x, self.data_y
             bootstraps.append(data)
         return bootstraps

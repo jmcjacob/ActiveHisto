@@ -59,7 +59,7 @@ class Model:
         self.centered = centered
 
     def loss(self):
-        if not self.loss_weight.shape == np.ones((0, 0)).shape:
+        if not self.loss_weights.shape == np.ones((0, 0)).shape:
             nb_cl = len(self.loss_weights)
             final_mask = tf.zeros_like(self.model[..., 0])
             y_pred_max = tf.reduce_max(self.model, axis=-1)
@@ -69,7 +69,7 @@ class Model:
             for c_p, c_t in product(range(nb_cl), range(nb_cl)):
                 w = tf.cast(self.loss_weights[c_t, c_p], 'float32')
                 y_p = tf.cast(y_pred_max_mat[..., c_p], 'float32')
-                y_t = tf.cast(y_pred_max_mat[..., c_t], 'flaot32')
+                y_t = tf.cast(y_pred_max_mat[..., c_t], 'float32')
                 final_mask += w * y_p * y_t
             loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.model, labels=self.Y) * final_mask
         else:
@@ -85,7 +85,7 @@ class Model:
                                               centered=self.centered)
         return optimiser.minimize(loss)
 
-    def converged(self, epochs, min_epochs=10, diff=0.1, converge_len=10):
+    def converged(self, epochs, min_epochs=10, diff=0.5, converge_len=10):
         if len(self.losses) > min_epochs and epochs == -1:
             losses = self.losses[-converge_len:]
             for loss in losses[: (converge_len - 1)]:
@@ -116,29 +116,31 @@ class Model:
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
         init = tf.global_variables_initializer()
 
-        with tf.Session as sess:
+        with tf.Session() as sess:
             sess.run(init)
             epoch = 0
             while not self.converged(epochs) and epoch != epochs:
                 sess.run(training_init_op)
                 train_loss = 0
-                for _ in range(train_batches):
+                for step in range(train_batches):
                     image_batch, label_batch = sess.run(train_next_batch)
                     _, cost = sess.run([optimiser, loss], feed_dict={self.X: image_batch, self.Y: label_batch})
-                    train_loss += cost / train_batches
+                    # print(str(step).zfill(5) + '/' + str(train_batches) + ' Loss: ' + str((sum(cost) / len(cost))))
+                    train_loss += (sum(cost) / len(cost))
                 epoch += 1
                 sess.run(val_init_op)
                 val_loss, val_acc = 0, 0
-                for _ in range(val_batches):
+                for step in range(val_batches):
                     image_batch, label_batch = sess.run(val_next_batch)
-                    acc, cost = sess.run([optimiser, loss], feed_dict={self.X: image_batch, self.Y: label_batch})
-                    val_loss += cost / val_batches
-                    val_acc += acc / val_batches
+                    acc, cost = sess.run([accuracy, loss], feed_dict={self.X: image_batch, self.Y: label_batch})
+                    val_loss += (sum(cost) / len(cost))
+                    val_acc += acc
                 self.losses.append(val_loss)
                 if self.verbose and epoch % intervals == 0:
-                    message = 'Epoch: ' + str(epoch).zfill(4) + ' Training Loss: {:.4f}'.format(train_loss)
-                    message += ' Validation Accuracy: {:.3f}'.format(val_acc)
-                    message += ' Validation Loss: {:.4f}'.format(val_loss)
+                    message = 'Epoch: ' + str(epoch).zfill(4)
+                    message += ' Training Loss: {:.4f}'.format(train_loss / train_batches)
+                    message += ' Validation Accuracy: {:.3f}'.format(val_acc / val_batches)
+                    message += ' Validation Loss: {:.4f}'.format(val_loss / val_batches)
                     print(message)
             sess.run(testing_init_op)
             test_acc = 0
@@ -147,20 +149,23 @@ class Model:
                 image_batch, label_batch = sess.run(test_next_batch)
                 acc, y_pred = sess.run([accuracy, tf.nn.softmax(self.model)], feed_dict={self.X:image_batch,
                                                                                          self.Y: label_batch})
-                test_acc += acc / test_batches
+                test_acc += acc
                 for i in range(len(label_batch)):
                     labels.append(np.argmax(label_batch[i]))
                     predictions.append(np.argmax(y_pred[i]))
-        return test_acc, f1_score(labels, predictions)
+        accuracy = test_acc / test_batches
+        f1 = f1_score(labels, predictions)
+        print('Model trained with an Accuracy: {:.4f}'.format(accuracy) + ' F1-Score: {:.4f}'.format(f1))
+        return accuracy, f1
 
-    def predit(self, data):
+    def predict(self, data):
         slice_predictions = []
         for i in range(len(data.data_y)):
             predict_data = data.get_predict_dataset(4, 10000, 10000, i)
             iterator = tf_data.Iterator.from_structure(predict_data.output_types, predict_data.output_shapes)
             next_batch = iterator.get_next()
             batches = data.get_num_predict_batches(10000, i)
-            data_init_op = iterator.make_ititializer(predict_data)
+            data_init_op = iterator.make_initializer(predict_data)
 
             predictions = []
             init = tf.global_variables_initializer()

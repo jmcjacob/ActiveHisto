@@ -3,76 +3,74 @@ import numpy as np
 
 
 class Active:
-    def __init__(self, data, model, budget, quality):
+    def __init__(self, data, model, budget, target):
         self.data = data
         self.model = model
         self.budget = budget
-        self.quality = quality
-        self.f1 = 0.0
+        self.target = target
+        self.f1_score = 0.0
         self.questions_asked = 0
-        self.values = np.zeros((len(self.data.predict_x)))
+        self.slide_uncertainty = np.zeros((len(self.data.data_y), len(self.data.data_y[0])))
 
     def new_model(self):
         return copy.copy(self.model)
 
-    def train_predict(self, data, prediction, verbose=True):
+    def train(self, data, verbose=True):
         if verbose:
             print('\nQuestions asked: ' + str(self.questions_asked))
-            print('Data length: ' + str(len(data.train_x)))
+            print('\nData length: ' + str(len(data.train_y)))
         model = self.new_model()
         if not self.model.loss_weights.shape == np.ones((0, 0)).shape:
             model.set_loss_params(weights=data.get_weights())
-        accuracy, f1 = model.train(data)
-        if prediction:
-            return f1, model.predict(data)
-        else:
-            return f1
+        return model.train(data)
 
-    def ranking(self, predictions, number_bootstraps):
-        for j in range(len(predictions)):
-            index = np.argmax(predictions[j])
-            temp = predictions[j][index]
-            self.values[j] += np.divide(temp, number_bootstraps)
-            self.values[j] = np.multiply(self.values[j], (1 - self.values[j]))
+    def train_predict(self, data, verbose=True):
+        if verbose:
+            print('\nQuestions asked: ' + str(self.questions_asked))
+            print('\nData length: ' + str(len(data.train_y)))
+        model = self.new_model()
+        if not self.model.loss_weights.shape == np.ones((0, 0)).shape:
+            model.set_loss_params(weights=data.get_weights())
+        accuracy, f1_score = model.train(data)
+        return model.predict(data)
 
-    def get_indexes(self, batch_size):
-        indexes = []
-        if self.data.balance:
-            num_to_label = int(batch_size / 10)
-            classification = [[], []]
-            for i in range(len(self.values)):
-                prediction_class = int(np.argmax(self.data.predict_y[i]))
-                classification[prediction_class].append([self.values[i], i])
-            for class_maxes in classification:
-                c_maxes, big_indexes = [m[0] for m in class_maxes], [n[1] for n in class_maxes]
-                for i in range(num_to_label):
-                    index = np.where(c_maxes == np.asarray(c_maxes).min())[0][0]
-                    class_maxes[index][0] = np.finfo(np.float64).max
-                    index = big_indexes[index]
-                    indexes.append(index)
-        else:
-            for i in range(batch_size):
-                index = np.where(self.values == self.values.min())[0][0]
-                self.values[index] = np.finfo(np.float64).max
-                indexes.append(index)
-        return indexes
+    def ranking(self, predictions, num_bootstraps):
+        for i in range(len(predictions)):
+            for j in range(len(predictions[0])):
+                index = np.argmax(predictions[i][j])
+                temp_value = predictions[i][j][index]
+                self.slide_uncertainty[i][j] += np.divide(temp_value, num_bootstraps)
 
-    def run(self, number_bootstraps, bootstrap_size, batch_size):
-        f1s = []
-        self.f1 = self.train_predict(self.data, False)
-        f1s.append(self.f1)
+    def get_index(self, batch_size):
+        slide_average = np.zeros(len(self.slide_uncertainty))
+        for i in range(len(self.slide_uncertainty)):
+            temp_array = []
+            for j in range(len(self.slide_uncertainty[0])):
+                temp_array.append(np.multiply(self.slide_uncertainty[i][j],
+                                              (1 - self.slide_uncertainty[i][j])))
+            slide_average[i] = sum(temp_array) / float(len(temp_array))
+        return_list = []
+        for _ in range(batch_size):
+            return_list.append(np.argmax(slide_average))
+            slide_average[np.argmax(slide_average)] = 0.0
+        return return_list
 
-        while self.budget != self.questions_asked and self.quality > self.f1:
-            self.values = np.zeros((len(self.data.predict_x)))
-            bootstraps = self.data.get_bootstraps(number_bootstraps, bootstrap_size)
-            for i in range(len(bootstraps)):
+    def run(self, num_bootstraps, bootstap_size, batch_size):
+        f1_scores = []
+        _, self.f1_score = self.train(self.data)
+        f1_scores.append(self.f1_score)
+
+        while self.budget != self.questions_asked and self.target > self.f1_score:
+            self.slide_uncertainty = np.zeros((len(self.data.data_y), len(self.data.data_y[0])))
+            bootstraps = self.data.get_bootstraps(num_bootstraps, bootstap_size)
+            for i in range(num_bootstraps):
                 print('\nBootstrap: ' + str(i))
-                _, predictions = self.train_predict(bootstraps[i], True, verbose=False)
-                self.ranking(predictions, number_bootstraps)
-            indexes = self.get_indexes(batch_size)
-            self.data.increase_data(indexes)
-            self.questions_asked = self.questions_asked + 1
-            self.f1, _ = self.train_predict(self.data, False)
-            f1s.append(self.f1)
+                predictions = self.train_predict(bootstraps[i], verbose=False)
+                self.ranking(predictions, num_bootstraps)
+            indices = self.get_index(batch_size)
+            self.data.set_training_data(indices)
+            self.questions_asked += 1
+            _, self.f1_score = self.train(self.data)
+            f1_scores.append(self.f1_score)
 
-        return f1s
+        return f1_scores

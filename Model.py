@@ -155,7 +155,8 @@ class Model:
                     predictions.append(np.argmax(y_pred[i]))
         accuracy = test_acc / test_batches
         f1 = f1_score(labels, predictions)
-        print('Model trained with an Accuracy: {:.4f}'.format(accuracy) + ' F1-Score: {:.4f}'.format(f1))
+        print('Model trained with an Accuracy: {:.4f}'.format(accuracy) + ' F1-Score: {:.4f}'.format(f1) + ' in ' +
+              str(epoch) + 'epochs')
         return accuracy, f1
 
     def predict(self, data):

@@ -38,7 +38,7 @@ class Active:
 
     def ranking(self, predictions, num_bootstraps):
         for i in range(len(predictions)):
-            for j in range(len(predictions[0])):
+            for j in range(len(predictions[i])):
                 index = np.argmax(predictions[i][j])
                 temp_value = predictions[i][j][index]
                 self.slide_uncertainty[i][j] += np.divide(temp_value, num_bootstraps)

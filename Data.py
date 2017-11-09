@@ -17,8 +17,8 @@ class Data:
 
     def __copy__(self):
         data = Data(self.val_percentage)
-        data.data_x = self.train_x + self.val_x
-        data.data_y = self.train_y + self.val_y
+        data.data_x = self.data_x + self.train_x + self.val_x
+        data.data_y = self.data_y + self.train_y + self.val_y
         data.test_x, data.test_y = self.test_x, self.test_y
         return data
 
@@ -128,26 +128,33 @@ class Data:
 
     def get_weights(self):
         counter = Counter(self.train_y)
-        majority = max(counter.values())
-        weights = {cls: float(majority / count) for cls, count in counter.items()}
-        nb_cl = len(weights)
-        final_weights = np.ones((nb_cl, nb_cl))
-        for class_idx, class_weight in weights.items():
-            final_weights[0][class_idx] = class_weight
-            final_weights[class_idx][0] = class_weight
-        return final_weights
+        return counter[0] / counter[1]
 
-    def get_bootstraps(self, num_bootstraps, bootstrap_size, val_percentage):
+    def get_bootstraps(self, num_bootstraps, bootstrap_size, val_percentage, balance):
         bootstraps = []
         for _ in range(num_bootstraps):
             bootstrap_x, bootstrap_y = [], []
-            indices = random.sample(range(len(self.train_x)), bootstrap_size)
-            for index in indices:
-                bootstrap_x.append(self.train_x[index])
-                bootstrap_y.append(self.train_y[index])
+            if balance:
+                classes = [[], []]
+                for i in range(len(self.train_y)):
+                    classes[int(self.train_y[i])].append(i)
+                for classification in classes:
+                    indexes = random.sample(classification, bootstrap_size // 2)
+                    for index in indexes:
+                        bootstrap_x.append(self.train_x[index])
+                        bootstrap_y.append(self.train_y[index])
+            else:
+                indices = random.sample(range(len(self.train_x)), bootstrap_size)
+                for index in indices:
+                    bootstrap_x.append(self.train_x[index])
+                    bootstrap_y.append(self.train_y[index])
             data = Data(val_percentage)
             data.set_data(bootstrap_x, bootstrap_y)
             data.test_x, data.test_y = self.test_x, self.test_y
             data.data_x, data.data_y = self.data_x, self.data_y
             bootstraps.append(data)
+            print(data.check_balance())
         return bootstraps
+
+    def check_balance(self):
+        return Counter(self.train_y)

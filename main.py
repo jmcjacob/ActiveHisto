@@ -11,25 +11,30 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 def train():
+    if sys.argv[4].lower() == 'true':
+        balance = True
+    else:
+        balance = False
+
     data = Data(0.05)
     data.load_data(sys.argv[2])
     data.load_test_data(sys.argv[3])
 
     # Train a single model with all of the Data.
-    # tempdata = copy(data)
-    # tempdata.set_training_data(range(len(tempdata.data_y)))
-    # model = Model([1200], 2)
-    # model.set_loss_params(weights=tempdata.get_weights())
-    # accuracy, f1_score = model.train(tempdata, epochs=1, intervals=1, batch_size=100)
-    # print('Accuracy: ' + str(accuracy))
-    # print('F1-Score: ' + str(f1_score))
+    tempdata = copy(data)
+    tempdata.set_training_data(range(len(tempdata.data_y)))
+    model = Model([1200], 2)
+    model.set_loss_params(weights=tempdata.get_weights())
+    accuracy, f1_score = model.train(tempdata, epochs=-1, intervals=10, batch_size=100)
+    print('Accuracy: ' + str(accuracy))
+    print('F1-Score: ' + str(f1_score))
 
     # Train with Active Learning.
     data.set_random_training_data(1)
     model = Model([1200], 2)
     model.set_loss_params(weights=data.get_weights())
-    active = Active(data, model, 2, 1.)
-    f1_scores = active.run(5, 500, 100)
+    active = Active(data, model, 10, 1., balance)
+    f1_scores = active.run(100, 100, 1)
     print(f1_scores)
 
 

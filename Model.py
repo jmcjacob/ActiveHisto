@@ -45,7 +45,7 @@ class Model:
         layer3 = tf.nn.softsign(tf.add(tf.matmul(layer2, self.weights['h3']), self.biases['b3']))
         return tf.add(tf.matmul(layer3, self.weights['out']), self.biases['out'])
 
-    def set_loss_params(self, weights=np.zeros((0, 0)), beta=0.1):
+    def set_loss_params(self, weights=None, beta=0.1):
         self.beta = 0.1
         self.loss_weights = weights
 
@@ -59,19 +59,10 @@ class Model:
         self.centered = centered
 
     def loss(self):
-        if not self.loss_weights.shape == np.ones((0, 0)).shape:
-            nb_cl = len(self.loss_weights)
-            final_mask = tf.zeros_like(self.model[..., 0])
-            y_pred_max = tf.reduce_max(self.model, axis=-1)
-            y_pred_max = tf.expand_dims(y_pred_max, axis=-1)
-            y_pred_max_mat = tf.equal(self.model, y_pred_max)
-
-            for c_p, c_t in product(range(nb_cl), range(nb_cl)):
-                w = tf.cast(self.loss_weights[c_t, c_p], 'float32')
-                y_p = tf.cast(y_pred_max_mat[..., c_p], 'float32')
-                y_t = tf.cast(y_pred_max_mat[..., c_t], 'float32')
-                final_mask += w * y_p * y_t
-            loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.model, labels=self.Y) * final_mask
+        if self.loss_weights is not None:
+            print(self.loss_weights)
+            loss = tf.nn.weighted_cross_entropy_with_logits(logits=tf.nn.softmax(self.model),
+                                                            targets=self.Y, pos_weight=self.loss_weights)
         else:
             loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.model, labels=self.Y)
         loss += self.beta * tf.nn.l2_loss(self.weights['h2']) + self.beta * tf.nn.l2_loss(self.biases['b2'])
@@ -126,14 +117,14 @@ class Model:
                     image_batch, label_batch = sess.run(train_next_batch)
                     _, cost = sess.run([optimiser, loss], feed_dict={self.X: image_batch, self.Y: label_batch})
                     # print(str(step).zfill(5) + '/' + str(train_batches) + ' Loss: ' + str((sum(cost) / len(cost))))
-                    train_loss += (sum(cost) / len(cost))
+                    train_loss += sum(sum(cost) / len(cost)) / 2
                 epoch += 1
                 sess.run(val_init_op)
                 val_loss, val_acc = 0, 0
                 for step in range(val_batches):
                     image_batch, label_batch = sess.run(val_next_batch)
                     acc, cost = sess.run([accuracy, loss], feed_dict={self.X: image_batch, self.Y: label_batch})
-                    val_loss += (sum(cost) / len(cost))
+                    val_loss += sum(sum(cost) / len(cost)) / 2
                     val_acc += acc
                 self.losses.append(val_loss)
                 if self.verbose and epoch % intervals == 0:
@@ -150,13 +141,13 @@ class Model:
                 acc, y_pred = sess.run([accuracy, tf.nn.softmax(self.model)], feed_dict={self.X:image_batch,
                                                                                          self.Y: label_batch})
                 test_acc += acc
-                for i in range(len(label_batch)):
+                for i in range(len(label_batch) - 1):
                     labels.append(np.argmax(label_batch[i]))
                     predictions.append(np.argmax(y_pred[i]))
         accuracy = test_acc / test_batches
         f1 = f1_score(labels, predictions)
         print('Model trained with an Accuracy: {:.4f}'.format(accuracy) + ' F1-Score: {:.4f}'.format(f1) + ' in ' +
-              str(epoch) + 'epochs')
+              str(epoch) + ' epochs')
         return accuracy, f1
 
     def predict(self, data):

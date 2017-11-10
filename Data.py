@@ -153,7 +153,6 @@ class Data:
             data.test_x, data.test_y = self.test_x, self.test_y
             data.data_x, data.data_y = self.data_x, self.data_y
             bootstraps.append(data)
-            print(data.check_balance())
         return bootstraps
 
     def check_balance(self):

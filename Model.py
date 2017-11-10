@@ -86,20 +86,21 @@ class Model:
         return False
 
     def train(self, data, epochs=-1, batch_size=100, intervals=10):
-        train_data, test_data, val_data = data.get_datasets(4, 10000, batch_size, batch_size * 10)
-        train_batches, test_batches, val_batches = data.get_num_batches(batch_size, batch_size * 10)
+        with tf.device('/cpu:0'):
+            train_data, test_data, val_data = data.get_datasets(4, 10000, batch_size, batch_size * 100)
+            train_batches, test_batches, val_batches = data.get_num_batches(batch_size, batch_size * 100)
 
-        train_iterator = tf_data.Iterator.from_structure(train_data.output_types, train_data.output_shapes)
-        train_next_batch = train_iterator.get_next()
-        training_init_op = train_iterator.make_initializer(train_data)
+            train_iterator = tf_data.Iterator.from_structure(train_data.output_types, train_data.output_shapes)
+            train_next_batch = train_iterator.get_next()
+            training_init_op = train_iterator.make_initializer(train_data)
 
-        val_iterator = tf_data.Iterator.from_structure(val_data.output_types, test_data.output_shapes)
-        val_next_batch = val_iterator.get_next()
-        val_init_op = val_iterator.make_initializer(val_data)
+            val_iterator = tf_data.Iterator.from_structure(val_data.output_types, test_data.output_shapes)
+            val_next_batch = val_iterator.get_next()
+            val_init_op = val_iterator.make_initializer(val_data)
 
-        test_iterator = tf_data.Iterator.from_structure(test_data.output_types, test_data.output_shapes)
-        test_next_batch = test_iterator.get_next()
-        testing_init_op = test_iterator.make_initializer(test_data)
+            test_iterator = tf_data.Iterator.from_structure(test_data.output_types, test_data.output_shapes)
+            test_next_batch = test_iterator.get_next()
+            testing_init_op = test_iterator.make_initializer(test_data)
 
         loss = self.loss()
         optimiser = self.optimise(loss)
@@ -133,6 +134,7 @@ class Model:
                     message += ' Validation Accuracy: {:.3f}'.format(val_acc / val_batches)
                     message += ' Validation Loss: {:.4f}'.format(val_loss / val_batches)
                     print(message)
+                    print(message, file=open('results.txt', 'a'))
             sess.run(testing_init_op)
             test_acc = 0
             predictions, labels = [], []
@@ -147,17 +149,20 @@ class Model:
         accuracy = test_acc / test_batches
         f1 = f1_score(labels, predictions)
         print('Model trained with an Accuracy: {:.4f}'.format(accuracy) + ' F1-Score: {:.4f}'.format(f1) + ' in ' +
+              str(epoch) + ' epochs', file=open('results.txt', 'a'))
+        print('Model trained with an Accuracy: {:.4f}'.format(accuracy) + ' F1-Score: {:.4f}'.format(f1) + ' in ' +
               str(epoch) + ' epochs')
         return accuracy, f1
 
     def predict(self, data):
         slice_predictions = []
         for i in range(len(data.data_y)):
-            predict_data = data.get_predict_dataset(4, 10000, 10000, i)
-            iterator = tf_data.Iterator.from_structure(predict_data.output_types, predict_data.output_shapes)
-            next_batch = iterator.get_next()
-            batches = data.get_num_predict_batches(10000, i)
-            data_init_op = iterator.make_initializer(predict_data)
+            with tf.device('/cpu:0'):
+                predict_data = data.get_predict_dataset(4, 100000, 100000, i)
+                iterator = tf_data.Iterator.from_structure(predict_data.output_types, predict_data.output_shapes)
+                next_batch = iterator.get_next()
+                batches = data.get_num_predict_batches(10000, i)
+                data_init_op = iterator.make_initializer(predict_data)
 
             predictions = []
             init = tf.global_variables_initializer()

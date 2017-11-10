@@ -27,7 +27,9 @@ def train():
     model.set_loss_params(weights=tempdata.get_weights())
     accuracy, f1_score = model.train(tempdata, epochs=-1, intervals=10, batch_size=100)
     print('Accuracy: ' + str(accuracy))
+    print('Accuracy: ' + str(accuracy), file=open('results.txt', 'a'))
     print('F1-Score: ' + str(f1_score))
+    print('F1-Score: ' + str(f1_score), file=open('results.txt', 'a'))
 
     # Train with Active Learning.
     data.set_random_training_data(1)

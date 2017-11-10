@@ -27,7 +27,10 @@ class Active:
         if verbose:
             print('\n\nQuestions asked: ' + str(self.questions_asked))
             print('Data length: ' + str(len(data.train_y)))
-        print('Data Balance: ' + str(data.check_balance()) + '\n')
+            print('Data Balance: ' + str(data.check_balance()) + '\n')
+            print('\n\nQuestions asked: ' + str(self.questions_asked), file=open('results.txt', 'a'))
+            print('Data length: ' + str(len(data.train_y)), file=open('results.txt', 'a'))
+            print('Data Balance: ' + str(data.check_balance()) + '\n', file=open('results.txt', 'a'))
         model = self.new_model(verbose)
         if self.model.loss_weights is not None:
             model.set_loss_params(weights=data.get_weights())
@@ -35,9 +38,12 @@ class Active:
 
     def train_predict(self, data, verbose=True):
         if verbose:
-            print('\nQuestions asked: ' + str(self.questions_asked))
+            print('\n\nQuestions asked: ' + str(self.questions_asked))
             print('Data length: ' + str(len(data.train_y)))
-            print('Data Balance: ' + str(data.check_balance()))
+            print('Data Balance: ' + str(data.check_balance()) + '\n')
+            print('\n\nQuestions asked: ' + str(self.questions_asked), file=open('results.txt', 'a'))
+            print('Data length: ' + str(len(data.train_y)), file=open('results.txt', 'a'))
+            print('Data Balance: ' + str(data.check_balance()) + '\n', file=open('results.txt', 'a'))
         model = self.new_model(verbose)
         if self.model.loss_weights is not None:
             model.set_loss_params(weights=data.get_weights())
@@ -80,6 +86,7 @@ class Active:
             bootstraps = self.data.get_bootstraps(num_bootstraps, bootstap_size, 0.2, self.balance)
             for i in range(num_bootstraps):
                 print('\nBootstrap: ' + str(i))
+                print('\nBootstrap: ' + str(i), file=open('results.txt', 'a'))
                 predictions = self.train_predict(bootstraps[i], verbose=False)
                 self.ranking(predictions, num_bootstraps)
             indices = self.get_index(batch_size)

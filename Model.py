@@ -11,8 +11,9 @@ class Model:
         self.input_shape = input_shape
         self.num_classes = num_classes
 
-        self.X = tf.placeholder('float', [None] + input_shape)
-        self.Y = tf.placeholder('float', [None, self.num_classes])
+        self.X = tf.placeholder(tf.float32, [None] + input_shape)
+        self.Y = tf.placeholder(tf.float32, [None, self.num_classes])
+        self.Drop = tf.placeholder(tf.float32)
         self.model = self.create_model()
 
         self.verbose = verbose
@@ -24,26 +25,85 @@ class Model:
     def __copy__(self):
         model = Model(self.input_shape, self.num_classes, self.verbose)
         model.set_loss_params(self.loss_weights, self.beta)
+        model.set_optimise_params(self.learning_rate, self.decay, self.momentum, self.epsilon, self.use_locking,
+                                  self.centered)
         return model
 
     def create_model(self):
         self.weights = {
-            'h1': tf.Variable(tf.truncated_normal(self.input_shape + [256])),
-            'h2': tf.Variable(tf.truncated_normal([256, 256])),
-            'h3': tf.Variable(tf.truncated_normal([256, 256])),
-            'out': tf.Variable(tf.truncated_normal([256, self.num_classes]))
+            'c1': tf.Variable(tf.random_normal([3, 3, 3, 64])),
+            'c2': tf.Variable(tf.random_normal([3, 3, 64, 64])),
+            'c3': tf.Variable(tf.random_normal([3, 3, 64, 128])),
+            'c4': tf.Variable(tf.random_normal([3, 3, 64, 128])),
+            'c5': tf.Variable(tf.random_normal([3, 3, 128, 256])),
+            'c6': tf.Variable(tf.random_normal([3, 3, 256, 256])),
+            'c7': tf.Variable(tf.random_normal([3, 3, 256, 256])),
+            'c8': tf.Variable(tf.random_normal([3, 3, 256, 512])),
+            'c9': tf.Variable(tf.random_normal([3, 3, 512, 512])),
+            'c10': tf.Variable(tf.random_normal([3, 3, 512, 512])),
+            'fw1': tf.Variable(tf.random_normal([4608, 4096])),
+            'fw2': tf.Variable(tf.random_normal([4096, 4096])),
+            'out': tf.Variable(tf.random_normal([4096, self.num_classes]))
         }
         self.biases = {
-            'b1': tf.Variable(tf.truncated_normal([256])),
-            'b2': tf.Variable(tf.truncated_normal([256])),
-            'b3': tf.Variable(tf.truncated_normal([256])),
-            'out': tf.Variable(tf.truncated_normal([self.num_classes]))
+            'b1': tf.Variable(tf.random_normal([64])),
+            'b2': tf.Variable(tf.random_normal([64])),
+            'b3': tf.Variable(tf.random_normal([128])),
+            'b4': tf.Variable(tf.random_normal([128])),
+            'b5': tf.Variable(tf.random_normal([256])),
+            'b6': tf.Variable(tf.random_normal([256])),
+            'b7': tf.Variable(tf.random_normal([256])),
+            'b8': tf.Variable(tf.random_normal([512])),
+            'b9': tf.Variable(tf.random_normal([512])),
+            'b10': tf.Variable(tf.random_normal([512])),
+            'fb1': tf.Variable(tf.random_normal([4096])),
+            'fb2': tf.Variable(tf.random_normal([4096])),
+            'out': tf.Variable(tf.random_normal([self.num_classes]))
         }
 
-        layer1 = tf.add(tf.matmul(self.X, self.weights['h1']), self.biases['b1'])
-        layer2 = tf.add(tf.matmul(layer1, self.weights['h2']), self.biases['b2'])
-        layer3 = tf.nn.softsign(tf.add(tf.matmul(layer2, self.weights['h3']), self.biases['b3']))
-        return tf.add(tf.matmul(layer3, self.weights['out']), self.biases['out'])
+        conv_1 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(self.X, self.weights['c1'], [1,1,1,1], 'SAME'),
+                                           self.biases['b1']))
+        conv_2 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_1, self.weights['c2'], [1,1,1,1], 'SAME'),
+                                           self.biases['b2']))
+        pool_1 = tf.nn.max_pool(conv_2, [1,2,2,1], [1,1,1,1], 'SAME')
+
+        conv_3 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(pool_1, self.weights['c3'], [1,1,1,1], 'SAME'),
+                                           self.biases['b3']))
+        conv_4 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_3, self.weights['c4'], [1,1,1,1], 'SAME'),
+                                           self.biases['b4']))
+        pool_2 = tf.nn.max_pool(conv_4, [1,2,2,1], [1,1,1,1], 'SAME')
+
+        conv_5 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(pool_2, self.weights['c5'], [1,1,1,1], 'SAME'),
+                                           self.biases['b5']))
+        conv_6 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_5, self.weights['c6'], [1,1,1,1], 'SAME'),
+                                           self.biases['b6']))
+        conv_7 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_6, self.weights['c7'], [1,1,1,1], 'SAME'),
+                                           self.biases['b7']))
+        pool_3 = tf.nn.max_pool(conv_7, [1,2,2,1], [1,1,1,1], 'SAME')
+
+        conv_8 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(pool_3, self.weights['c8'], [1,1,1,1], 'SAME'),
+                                           self.biases['b8']))
+        conv_9 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_8, self.weights['c9'], [1,1,1,1], 'SAME'),
+                                           self.biases['b9']))
+        conv_10 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_9, self.weights['c10'], [1,1,1,1], 'SAME'),
+                                            self.biases['b10']))
+        pool_4 = tf.nn.max_pool(conv_10, [1,2,2,1], [1,1,1,1], 'SAME')
+
+        conv_11 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(pool_4, self.weights['c11'], [1,1,1,1], 'SAME'),
+                                            self.biases['b11']))
+        conv_12 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_11, self.weights['c12'], [1,1,1,1], 'SAME'),
+                                            self.biases['b12']))
+        conv_13 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_12, self.weights['c13'], [1,1,1,1], 'SAME'),
+                                            self.biases['b13']))
+        pool_5 = tf.nn.max_pool(conv_13, [1,2,2,1], [1,1,1,1], 'SAME')
+
+        fc1 = tf.reshape(pool_5, [-1, self.weights['fw1'].get_shape().as_list()[0]])
+        full_1 = tf.nn.dropout(tf.nn.relu(tf.nn.bias_add(tf.matmul(fc1, self.weights['fw1']), self.biases['fb1'])),
+                               self.Drop)
+        full_2 = tf.nn.dropout(tf.nn.relu(tf.nn.bias_add(tf.matmul(full_1, self.weights['fw2']), self.biases['fb2'])),
+                               self.Drop)
+        return tf.nn.bias_add(tf.matmul(full_2, self.weights['out']), self.biases['out'])
+
 
     def set_loss_params(self, weights=None, beta=0.1):
         self.beta = 0.1
@@ -141,7 +201,8 @@ class Model:
             for step in range(test_batches):
                 image_batch, label_batch = sess.run(test_next_batch)
                 acc, y_pred = sess.run([accuracy, tf.nn.softmax(self.model)], feed_dict={self.X:image_batch,
-                                                                                         self.Y: label_batch})
+                                                                                         self.Y: label_batch,
+                                                                                         self.Drop: 0.5})
                 test_acc += acc
                 for i in range(len(label_batch) - 1):
                     labels.append(np.argmax(label_batch[i]))
@@ -171,6 +232,7 @@ class Model:
                 sess.run(data_init_op)
                 for step in range(batches):
                     image_batch = sess.run(next_batch)
-                    predictions += sess.run(tf.nn.softmax(self.model), feed_dict={self.X: image_batch}).tolist()
+                    predictions += sess.run(tf.nn.softmax(self.model),
+                                            feed_dict={self.X: image_batch, self.Drop:0.}).tolist()
             slice_predictions.append(predictions)
         return slice_predictions

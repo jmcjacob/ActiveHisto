@@ -106,7 +106,7 @@ class Model:
 
 
     def set_loss_params(self, weights=None, beta=0.1):
-        self.beta = 0.1
+        self.beta = beta
         self.loss_weights = weights
 
     def set_optimise_params(self, learning_rate=0.001, decay=0.9, momentum=0.0, epsilon=1e-10,

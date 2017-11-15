@@ -34,15 +34,19 @@ def build_binary_detection_dataset(in_dir, out_dir, patch_size, steps):
                 else:
                     continue
                 patch = border_image[j:j + patch_size, i:i + patch_size]
-                if label == '/hit/':
-                    patches = [patch, cv2.flip(patch, 0), cv2.flip(patch, 1), cv2.flip(patch, 2),
-                               cv2.GaussianBlur(patch, (3, 3), 0.25), cv2.medianBlur(patch, 3)]
-                    for p in range(len(patches)):
-                        cv2.imwrite(out_dir + str(img_num) + label + str(i) + ',' + str(j) + str(p) + '.bmp',
-                                    patches[p])
-                        count += 1
-                else:
-                    cv2.imwrite(out_dir + str(img_num) + label + str(i) + ',' + str(j) + '.bmp', patch)
+                patches = [patch, cv2.flip(patch, 0), cv2.flip(patch, 1), cv2.flip(patch, 2),
+                           cv2.GaussianBlur(patch, (3, 3), 0.25)]
+
+                rows, cols = patch.shape
+                for i in [90, 180, 260]:
+                    M = cv2.getRotationMatrix2D((cols / 2, rows / 2), i, 1)
+                    patches.append(cv2.warpAffine(patch, M, (cols, rows)))
+
+                patches = [patch, cv2.flip(patch, 0), cv2.flip(patch, 1), cv2.flip(patch, 2),
+                           cv2.GaussianBlur(patch, (3, 3), 0.25), cv2.medianBlur(patch, 3)]
+                for p in range(len(patches)):
+                    cv2.imwrite(out_dir + str(img_num) + label + str(i) + ',' + str(j) + str(p) + '.bmp',
+                                patches[p])
                     count += 1
 
                 if count % 10000 == 0:

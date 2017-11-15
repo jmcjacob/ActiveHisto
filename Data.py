@@ -91,12 +91,12 @@ class Data:
         one_hot_label = tf.one_hot(tf.to_int32(label), 2)
         image_file = tf.read_file(image_path)
         image = tf.image.decode_image(image_file, channels=3)
-        return tf.reshape(image, [1200]), one_hot_label
+        return tf.reshape(image, [2523]), one_hot_label
 
     def predict_input_parser(self, image_path):
         image_file = tf.read_file(image_path)
         image = tf.image.decode_image(image_file, channels=3)
-        return tf.reshape(image, [1200])
+        return tf.reshape(image, [2523])
 
     def get_datasets(self, num_threads, buffer_size, train_batch_size, test_batch_size):
         train_images = tf.constant(np.asarray(self.train_x))
@@ -139,12 +139,12 @@ class Data:
                 for i in range(len(self.train_y)):
                     classes[int(self.train_y[i])].append(i)
                 for classification in classes:
-                    indexes = random.sample(classification, bootstrap_size // 2)
-                    for index in indexes:
+                    indices = np.random.choice(range(len(classification)), bootstrap_size // 2, replace=True)
+                    for index in indices:
                         bootstrap_x.append(self.train_x[index])
                         bootstrap_y.append(self.train_y[index])
             else:
-                indices = random.sample(range(len(self.train_x)), bootstrap_size)
+                indices = np.random.choice(range(len(self.train_x)), bootstrap_size, replace=True)
                 for index in indices:
                     bootstrap_x.append(self.train_x[index])
                     bootstrap_y.append(self.train_y[index])

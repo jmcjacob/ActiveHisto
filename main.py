@@ -23,7 +23,7 @@ def train():
     # Train a single model with all of the Data.
     tempdata = copy(data)
     tempdata.set_training_data(range(len(tempdata.data_y)))
-    model = Model([1200], 2)
+    model = Model([29, 29], 2)
     model.set_loss_params(weights=tempdata.get_weights())
     accuracy, f1_score = model.train(tempdata, epochs=-1, intervals=10, batch_size=100)
     print('Accuracy: ' + str(accuracy))
@@ -33,10 +33,10 @@ def train():
 
     # Train with Active Learning.
     data.set_random_training_data(1)
-    model = Model([1200], 2)
+    model = Model([2523], 2)
     model.set_loss_params(weights=data.get_weights())
     active = Active(data, model, 10, 1., balance)
-    f1_scores = active.run(100, 100, 1)
+    f1_scores = active.run(100, 5000, 1)
     print(f1_scores)
 
 

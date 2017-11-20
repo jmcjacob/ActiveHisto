@@ -58,17 +58,17 @@ class Active:
                 self.slide_uncertainty[i][j] += np.divide(temp_value, num_bootstraps)
 
     def get_index(self, batch_size):
-        slide_average = np.zeros(len(self.slide_uncertainty))
+        slide_max = np.zeros(len(self.slide_uncertainty))
         for i in range(len(self.slide_uncertainty) - 1):
             temp_array = []
             for j in range(len(self.slide_uncertainty[i]) - 1):
                 temp_array.append(np.multiply(self.slide_uncertainty[i][j],
                                               (1 - self.slide_uncertainty[i][j])))
-            slide_average[i] = sum(temp_array) / float(len(temp_array))
+            slide_max[i] = max(temp_array)
         return_list = []
         for _ in range(batch_size):
-            return_list.append(np.argmax(slide_average))
-            slide_average[np.argmax(slide_average)] = 0.0
+            return_list.append(np.argmax(slide_max))
+            slide_max[np.argmax(slide_max)] = 0.0
         return return_list
 
     def run(self, num_bootstraps, bootstap_size, batch_size):

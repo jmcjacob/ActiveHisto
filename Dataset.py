@@ -43,7 +43,7 @@ def build_binary_detection_dataset(in_dir, out_dir, patch_size, region_size, ste
                             cv2.imwrite(out_dir + str(region_count) + label + str(pi) + ',' + str(pj) + str(p) + '.bmp',
                                         patches[p])
                             count += 1
-                            if count % 10000 == 0:
+                            if count % 100000 == 0:
                                 print(str(count) + ' Completed!')
                 region_count += 1
                 print('Region ' + str(region_count) + ' Completed!')

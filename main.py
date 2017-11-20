@@ -42,7 +42,8 @@ def train():
 
 if __name__ == '__main__':
     if sys.argv[1] == 'binary':
-        Dataset.build_binary_detection_dataset(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]))
+        Dataset.build_binary_detection_dataset(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]),
+                                               int(sys.argv[6]))
     elif sys.argv[1] == 'train':
         train()
     else:

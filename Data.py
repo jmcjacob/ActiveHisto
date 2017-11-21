@@ -91,12 +91,12 @@ class Data:
         one_hot_label = tf.one_hot(tf.to_int32(label), 2)
         image_file = tf.read_file(image_path)
         image = tf.image.decode_image(image_file, channels=3)
-        return tf.reshape(image, [2523]), one_hot_label
+        return tf.cast(image, 'float'), one_hot_label
 
     def predict_input_parser(self, image_path):
         image_file = tf.read_file(image_path)
         image = tf.image.decode_image(image_file, channels=3)
-        return tf.reshape(image, [2523])
+        return tf.cast(image, 'float')
 
     def get_datasets(self, num_threads, buffer_size, train_batch_size, test_batch_size):
         train_images = tf.constant(np.asarray(self.train_x))
@@ -118,7 +118,7 @@ class Data:
         test_dataset = test_dataset.batch(test_batch_size)
         validation_dataset = validation_dataset.batch(test_batch_size)
 
-        return train_dataset.shuffle(10000), test_dataset, validation_dataset
+        return train_dataset.shuffle(buffer_size), test_dataset, validation_dataset
 
     def get_predict_dataset(self, num_threads, buffer_size, batch_size, index):
         images = tf.constant(self.data_x[index])

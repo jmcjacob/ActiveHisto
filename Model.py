@@ -46,9 +46,9 @@ class Model:
             'c11': tf.Variable(tf.random_normal([3, 3, 512, 512])),
             'c12': tf.Variable(tf.random_normal([3, 3, 512, 512])),
             'c13': tf.Variable(tf.random_normal([3, 3, 512, 512])),
-            'fw1': tf.Variable(tf.random_normal([512, 4096])),
-            'fw2': tf.Variable(tf.random_normal([4096, 4096])),
-            'out': tf.Variable(tf.random_normal([4096, self.num_classes]))
+            'fw1': tf.Variable(tf.random_normal([512, 4096]), name='fw1'),
+            'fw2': tf.Variable(tf.random_normal([4096, 4096]), name='fw2'),
+            'outw': tf.Variable(tf.random_normal([4096, self.num_classes]), name='outw')
         }
         self.biases = {
             'b1': tf.Variable(tf.random_normal([64])),
@@ -64,9 +64,9 @@ class Model:
             'b11': tf.Variable(tf.random_normal([512])),
             'b12': tf.Variable(tf.random_normal([512])),
             'b13': tf.Variable(tf.random_normal([512])),
-            'fb1': tf.Variable(tf.random_normal([4096])),
-            'fb2': tf.Variable(tf.random_normal([4096])),
-            'out': tf.Variable(tf.random_normal([self.num_classes]))
+            'fb1': tf.Variable(tf.random_normal([4096]), name='fb1'),
+            'fb2': tf.Variable(tf.random_normal([4096]), name='fb2'),
+            'outb': tf.Variable(tf.random_normal([self.num_classes]), name='outb')
         }
 
         conv_1 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(self.X, self.weights['c1'], [1,1,1,1], 'SAME'),
@@ -106,12 +106,11 @@ class Model:
         pool_5 = tf.nn.max_pool(conv_13, [1,2,2,1], [1,2,2,1], 'SAME')
 
         fc1 = tf.reshape(pool_5, [-1, self.weights['fw1'].get_shape().as_list()[0]])
-        with tf.variable_scope('final'):
-            full_1 = tf.nn.dropout(tf.nn.relu(tf.nn.bias_add(tf.matmul(fc1, self.weights['fw1']), self.biases['fb1'])),
+        full_1 = tf.nn.dropout(tf.nn.relu(tf.nn.bias_add(tf.matmul(fc1, self.weights['fw1']), self.biases['fb1'])),
                                    self.Drop)
-            full_2 = tf.nn.dropout(tf.nn.relu(tf.nn.bias_add(tf.matmul(full_1, self.weights['fw2']), self.biases['fb2'])),
+        full_2 = tf.nn.dropout(tf.nn.relu(tf.nn.bias_add(tf.matmul(full_1, self.weights['fw2']), self.biases['fb2'])),
                                    self.Drop)
-            output = tf.nn.bias_add(tf.matmul(full_2, self.weights['out']), self.biases['out'])
+        output = tf.nn.bias_add(tf.matmul(full_2, self.weights['outw']), self.biases['outb'])
         return output
 
     def set_loss_params(self, weights=None, beta=0.1):
@@ -142,7 +141,9 @@ class Model:
                                                   momentum=self.momentum, use_locking=self.use_locking,
                                                   centered=self.centered)
         if self.bootstrap:
-            return optimiser.minimize(loss, var_list='final')
+            final_vars = [self.weights['fw1'], self.weights['fw2'], self.weights['outw'],
+                    self.biases['fb1'], self.biases['fb2'], self.biases['outb']]
+            return optimiser.minimize(loss, var_list=final_vars)
         else:
             return optimiser.minimize(loss)
 
@@ -171,6 +172,7 @@ class Model:
             test_iterator = tf_data.Iterator.from_structure(test_data.output_types, test_data.output_shapes)
             test_next_batch = test_iterator.get_next()
             testing_init_op = test_iterator.make_initializer(test_data)
+            saver = tf.train.Saver()
 
         with tf.device('/device:GPU:0'):
             loss = self.loss()
@@ -178,7 +180,6 @@ class Model:
             correct_pred = tf.equal(tf.argmax(self.model, 1), tf.argmax(self.Y, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
             init = tf.global_variables_initializer()
-            saver = tf.train.Saver()
 
         with tf.Session() as sess:
             sess.run(init)

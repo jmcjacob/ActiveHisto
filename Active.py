@@ -18,9 +18,10 @@ class Active:
                 temp.append(0)
             self.slide_uncertainty.append(temp)
 
-    def new_model(self, verbose):
+    def new_model(self, verbose, bootstrap):
         model = copy.copy(self.model)
         model.verbose = verbose
+        model.bootstrap = bootstrap
         return model
 
     def train(self, data, verbose=True):
@@ -31,7 +32,7 @@ class Active:
             print('\n\nQuestions asked: ' + str(self.questions_asked), file=open('results.txt', 'a'))
             print('Data length: ' + str(len(data.train_y)), file=open('results.txt', 'a'))
             print('Data Balance: ' + str(data.check_balance()) + '\n', file=open('results.txt', 'a'))
-        model = self.new_model(verbose)
+        model = self.new_model(verbose, False)
         if self.model.loss_weights is not None:
             model.set_loss_params(weights=data.get_weights())
         return model.train(data)
@@ -44,7 +45,7 @@ class Active:
             print('\n\nQuestions asked: ' + str(self.questions_asked), file=open('results.txt', 'a'))
             print('Data length: ' + str(len(data.train_y)), file=open('results.txt', 'a'))
             print('Data Balance: ' + str(data.check_balance()) + '\n', file=open('results.txt', 'a'))
-        model = self.new_model(verbose)
+        model = self.new_model(verbose, True)
         if self.model.loss_weights is not None:
             model.set_loss_params(weights=data.get_weights())
         accuracy, f1_score = model.train(data)

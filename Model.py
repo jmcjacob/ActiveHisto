@@ -6,7 +6,7 @@ import tensorflow.contrib.data as tf_data
 
 
 class Model:
-    def __init__(self, input_shape, num_classes, verbose=True):
+    def __init__(self, input_shape, num_classes, verbose=True, bootstrap=False):
         tf.reset_default_graph()
         self.input_shape = input_shape
         self.num_classes = num_classes
@@ -20,6 +20,7 @@ class Model:
         self.set_loss_params()
         self.set_optimise_params()
 
+        self.bootstrap = bootstrap
         self.verbose = verbose
         self.losses = []
 
@@ -104,16 +105,14 @@ class Model:
                                             self.biases['b13']))
         pool_5 = tf.nn.max_pool(conv_13, [1,2,2,1], [1,2,2,1], 'SAME')
 
-        thing = pool_5.get_shape().as_list()
-        print(thing)
-
         fc1 = tf.reshape(pool_5, [-1, self.weights['fw1'].get_shape().as_list()[0]])
-        full_1 = tf.nn.dropout(tf.nn.relu(tf.nn.bias_add(tf.matmul(fc1, self.weights['fw1']), self.biases['fb1'])),
-                               self.Drop)
-        full_2 = tf.nn.dropout(tf.nn.relu(tf.nn.bias_add(tf.matmul(full_1, self.weights['fw2']), self.biases['fb2'])),
-                               self.Drop)
-        return tf.nn.bias_add(tf.matmul(full_2, self.weights['out']), self.biases['out'])
-
+        with tf.variable_scope('final'):
+            full_1 = tf.nn.dropout(tf.nn.relu(tf.nn.bias_add(tf.matmul(fc1, self.weights['fw1']), self.biases['fb1'])),
+                                   self.Drop)
+            full_2 = tf.nn.dropout(tf.nn.relu(tf.nn.bias_add(tf.matmul(full_1, self.weights['fw2']), self.biases['fb2'])),
+                                   self.Drop)
+            output = tf.nn.bias_add(tf.matmul(full_2, self.weights['out']), self.biases['out'])
+        return output
 
     def set_loss_params(self, weights=None, beta=0.1):
         self.beta = beta
@@ -131,7 +130,7 @@ class Model:
     def loss(self):
         with tf.device('/device:GPU:0'):
             if self.loss_weights is not None:
-                print(self.loss_weights)
+                # print(self.loss_weights)
                 return tf.nn.weighted_cross_entropy_with_logits(logits=tf.nn.softmax(self.model),
                                                                 targets=self.Y, pos_weight=self.loss_weights)
             else:
@@ -142,7 +141,10 @@ class Model:
             optimiser = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate, decay=self.decay,
                                                   momentum=self.momentum, use_locking=self.use_locking,
                                                   centered=self.centered)
-        return optimiser.minimize(loss)
+        if self.bootstrap:
+            return optimiser.minimize(loss, var_list='final')
+        else:
+            return optimiser.minimize(loss)
 
     def converged(self, epochs, min_epochs=10, diff=0.5, converge_len=10):
         if len(self.losses) > min_epochs and epochs == -1:
@@ -155,8 +157,8 @@ class Model:
 
     def train(self, data, epochs=-1, batch_size=100, intervals=10):
         with tf.device('/cpu:0'):
-            train_data, test_data, val_data = data.get_datasets(4, 100, batch_size, batch_size * 1)
-            train_batches, test_batches, val_batches = data.get_num_batches(batch_size, batch_size * 1)
+            train_data, test_data, val_data = data.get_datasets(4, 100, batch_size, batch_size * 10)
+            train_batches, test_batches, val_batches = data.get_num_batches(batch_size, batch_size * 10)
 
             train_iterator = tf_data.Iterator.from_structure(train_data.output_types, train_data.output_shapes)
             train_next_batch = train_iterator.get_next()
@@ -176,9 +178,12 @@ class Model:
             correct_pred = tf.equal(tf.argmax(self.model, 1), tf.argmax(self.Y, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
             init = tf.global_variables_initializer()
+            saver = tf.train.Saver()
 
         with tf.Session() as sess:
             sess.run(init)
+            if self.bootstrap:
+                saver.restore(sess, 'tmp/model.ckpt')
             epoch = 0
             while not self.converged(epochs) and epoch != epochs:
                 sess.run(training_init_op)
@@ -204,6 +209,8 @@ class Model:
                     message += ' Validation Loss: {:.4f}'.format(val_loss / val_batches)
                     print(message)
                     print(message, file=open('results.txt', 'a'))
+            if not self.bootstrap:
+                saver.save(sess, 'tmp/model.ckpt')
             sess.run(testing_init_op)
             test_acc = 0
             predictions, labels = [], []
@@ -228,20 +235,27 @@ class Model:
         slice_predictions = []
         for i in range(len(data.data_y)):
             with tf.device('/cpu:0'):
-                predict_data = data.get_predict_dataset(4, 100000, 100000, i)
+                predict_data = data.get_predict_dataset(4, 1000, 1000, i)
                 iterator = tf_data.Iterator.from_structure(predict_data.output_types, predict_data.output_shapes)
                 next_batch = iterator.get_next()
-                batches = data.get_num_predict_batches(10000, i)
+                batches = data.get_num_predict_batches(1000, i)
                 data_init_op = iterator.make_initializer(predict_data)
 
             predictions = []
-            init = tf.global_variables_initializer()
+            with tf.device('/device:GPU:0'):
+                init = tf.global_variables_initializer()
             with tf.Session() as sess:
                 sess.run(init)
                 sess.run(data_init_op)
                 for step in range(batches):
                     image_batch = sess.run(next_batch)
                     predictions += sess.run(tf.nn.softmax(self.model),
-                                            feed_dict={self.X: image_batch, self.Drop:0.}).tolist()
+                                            feed_dict={self.X: image_batch, self.Drop:1.}).tolist()
             slice_predictions.append(predictions)
         return slice_predictions
+
+    def save_model(self):
+        pass
+
+    def load_model(self):
+        pass

@@ -60,6 +60,18 @@ class Data:
             self.data_y.pop(index)
         self.make_val_set()
 
+    def set_random_balanced_data(self, number):
+        for _ in range(number):
+            index = random.randint(0, len(self.data_y) - 1)
+            while len(Counter(self.data_y[index])) != 2:
+                index = random.randint(0, len(self.data_y) - 1)
+            self.train_x += self.data_x[index]
+            self.train_y += self.data_y[index]
+            self.data_x.pop(index)
+            self.data_y.pop(index)
+        self.make_val_set()
+
+
     def set_training_data(self, indices):
         if type(indices) != int:
             for index in sorted(indices, reverse=True):
@@ -139,7 +151,7 @@ class Data:
                 for i in range(len(self.train_y)):
                     classes[int(self.train_y[i])].append(i)
                 for classification in classes:
-                    indices = np.random.choice(range(len(classification)), bootstrap_size // 2, replace=True)
+                    indices = np.random.choice(classification, bootstrap_size // 2, replace=True)
                     for index in indices:
                         bootstrap_x.append(self.train_x[index])
                         bootstrap_y.append(self.train_y[index])

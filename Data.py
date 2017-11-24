@@ -96,8 +96,11 @@ class Data:
         val_batch = int(np.ceil(len(self.val_y) / (test_batch_size)))
         return train_batch, test_batch, val_batch
 
-    def get_num_predict_batches(self, batch_size, index):
-        return int(np.ceil(len(self.data_y[index]) / batch_size))
+    def get_num_predict_batches(self, batch_size):
+        sum = 0
+        for data in self.data_y:
+            sum += len(data)
+        return int(np.ceil(sum / batch_size))
 
     def input_parser(self, image_path, label):
         one_hot_label = tf.one_hot(tf.to_int32(label), 2)
@@ -132,11 +135,15 @@ class Data:
 
         return train_dataset.shuffle(buffer_size), test_dataset, validation_dataset
 
-    def get_predict_dataset(self, num_threads, buffer_size, batch_size, index):
-        images = tf.constant(self.data_x[index])
+    def get_predict_dataset(self, num_threads, buffer_size, batch_size):
+        indices, files = [], []
+        for slide in self.data_x:
+            files += slide
+            indices.append(len(files))
+        images = tf.constant(files)
         predict_dataset = tf_data.Dataset.from_tensor_slices((images))
         predict_dataset = predict_dataset.map(self.predict_input_parser, num_threads, buffer_size)
-        return predict_dataset.batch(batch_size)
+        return predict_dataset.batch(batch_size), indices
 
     def get_weights(self):
         counter = Counter(self.train_y)

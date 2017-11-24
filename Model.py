@@ -234,29 +234,25 @@ class Model:
 
     def predict(self, data):
         slice_predictions = []
-        for i in range(len(data.data_y)):
-            with tf.device('/cpu:0'):
-                predict_data = data.get_predict_dataset(4, 1000, 1000, i)
-                iterator = tf_data.Iterator.from_structure(predict_data.output_types, predict_data.output_shapes)
-                next_batch = iterator.get_next()
-                batches = data.get_num_predict_batches(1000, i)
-                data_init_op = iterator.make_initializer(predict_data)
+        predictions = []
+        with tf.device('/cpu:0'):
+            predict_data, indices = data.get_predict_dataset(4, 1000, 1000)
+            iterator = tf_data.Iterator.from_structure(predict_data.output_types, predict_data.output_shapes)
+            next_batch = iterator.get_next()
+            batches = data.get_num_predict_batches(1000)
+            data_init_op = iterator.make_initializer(predict_data)
+        with tf.device('/device:GPU:0'):
+            init = tf.global_variables_initializer()
+        with tf.Session() as sess:
+            sess.run(init)
+            sess.run(data_init_op)
+            for step in range(batches):
+                image_batch = sess.run(next_batch)
+                predictions += sess.run(tf.nn.softmax(self.model),
+                                        feed_dict={self.X: image_batch, self.Drop:1.}).tolist()
+        slice_predictions.append(predictions[0:indices[0]])
+        for i in range(1, len(indices)):
+            slice_predictions.append(predictions[indices[i-1
+            ]:indices[i]])
 
-            predictions = []
-            with tf.device('/device:GPU:0'):
-                init = tf.global_variables_initializer()
-            with tf.Session() as sess:
-                sess.run(init)
-                sess.run(data_init_op)
-                for step in range(batches):
-                    image_batch = sess.run(next_batch)
-                    predictions += sess.run(tf.nn.softmax(self.model),
-                                            feed_dict={self.X: image_batch, self.Drop:1.}).tolist()
-            slice_predictions.append(predictions)
         return slice_predictions
-
-    def save_model(self):
-        pass
-
-    def load_model(self):
-        pass

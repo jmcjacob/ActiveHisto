@@ -254,5 +254,11 @@ class Model:
         for i in range(1, len(indices)):
             slice_predictions.append(predictions[indices[i-1
             ]:indices[i]])
+        for i in range(len(slice_predictions)):
+            if slice_predictions[i] == []:
+                print(indices, file=open('thing.txt', 'a'))
+                print(data.data_x[i])
+                print(i)
+                print(slice_predictions[i])
 
         return slice_predictions

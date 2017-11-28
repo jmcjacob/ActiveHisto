@@ -42,8 +42,15 @@ class Data:
                 for image_file in os.listdir(data_dir + image_dir + '/miss'):
                     temp_x.append(data_dir + image_dir + '/miss/' + image_file)
                     temp_y.append(0)
+                if temp_x == []:
+                    print('')
                 self.data_x.append(temp_x)
                 self.data_y.append(temp_y)
+        lowest = 10000
+        for i in range(len(self.data_x)):
+            if len(self.data_x[i]) < lowest:
+                lowest = len(self.data_x[i])
+        print(lowest)
 
     def make_val_set(self):
         self.train_x += self.val_x
@@ -61,14 +68,21 @@ class Data:
         self.make_val_set()
 
     def set_random_balanced_data(self, number):
+        for i in range(len(self.data_x)):
+            if len(self.data_x[i]) == 0:
+                print(i)
         for _ in range(number):
             index = random.randint(0, len(self.data_y) - 1)
             while len(Counter(self.data_y[index])) != 2:
                 index = random.randint(0, len(self.data_y) - 1)
             self.train_x += self.data_x[index]
             self.train_y += self.data_y[index]
-            self.data_x.pop(index)
-            self.data_y.pop(index)
+            del self.data_x[index]
+            del self.data_y[index]
+            print('Index ' + str(index))
+            for i in range(len(self.data_x)):
+                if len(self.data_x[i]) == 0:
+                    print(i)
         self.make_val_set()
 
 
@@ -138,6 +152,8 @@ class Data:
     def get_predict_dataset(self, num_threads, buffer_size, batch_size):
         indices, files = [], []
         for slide in self.data_x:
+            if slide == []:
+                print('Something has gone wrong! part 1')
             files += slide
             indices.append(len(files))
         images = tf.constant(files)

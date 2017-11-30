@@ -129,7 +129,7 @@ class Model:
     def loss(self):
         with tf.device('/device:GPU:0'):
             if self.loss_weights is not None:
-                # print(self.loss_weights)
+                print(self.loss_weights)
                 return tf.nn.weighted_cross_entropy_with_logits(logits=tf.nn.softmax(self.model),
                                                                 targets=self.Y, pos_weight=self.loss_weights)
             else:
@@ -147,7 +147,10 @@ class Model:
         else:
             return optimiser.minimize(loss)
 
-    def converged(self, epochs, min_epochs=10, diff=0.5, converge_len=10):
+    def converged(self, epochs, min_epochs=2, diff=5.0, converge_len=5):
+        if self.bootstrap:
+            diff = 0.5
+            converge_len = 10
         if len(self.losses) > min_epochs and epochs == -1:
             losses = self.losses[-converge_len:]
             for loss in losses[: (converge_len - 1)]:

@@ -70,7 +70,7 @@ class Data:
     def set_random_balanced_data(self, number):
         for i in range(len(self.data_x)):
             if len(self.data_x[i]) == 0:
-                print(i)
+                print('Thing: ' + str(i))
         for _ in range(number):
             index = random.randint(0, len(self.data_y) - 1)
             while len(Counter(self.data_y[index])) != 2:
@@ -79,7 +79,6 @@ class Data:
             self.train_y += self.data_y[index]
             del self.data_x[index]
             del self.data_y[index]
-            print('Index ' + str(index))
             for i in range(len(self.data_x)):
                 if len(self.data_x[i]) == 0:
                     print(i)

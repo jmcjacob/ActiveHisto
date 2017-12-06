@@ -33,84 +33,40 @@ class Model:
 
     def create_model(self):
         self.weights = {
-            'c1': tf.Variable(tf.random_normal([3, 3, 3, 64])),
-            'c2': tf.Variable(tf.random_normal([3, 3, 64, 64])),
-            'c3': tf.Variable(tf.random_normal([3, 3, 64, 128])),
-            'c4': tf.Variable(tf.random_normal([3, 3, 128, 128])),
-            'c5': tf.Variable(tf.random_normal([3, 3, 128, 256])),
-            'c6': tf.Variable(tf.random_normal([3, 3, 256, 256])),
-            'c7': tf.Variable(tf.random_normal([3, 3, 256, 256])),
-            'c8': tf.Variable(tf.random_normal([3, 3, 256, 512])),
-            'c9': tf.Variable(tf.random_normal([3, 3, 512, 512])),
-            'c10': tf.Variable(tf.random_normal([3, 3, 512, 512])),
-            'c11': tf.Variable(tf.random_normal([3, 3, 512, 512])),
-            'c12': tf.Variable(tf.random_normal([3, 3, 512, 512])),
-            'c13': tf.Variable(tf.random_normal([3, 3, 512, 512])),
-            'fw1': tf.Variable(tf.random_normal([512, 4096]), name='fw1'),
-            'fw2': tf.Variable(tf.random_normal([4096, 4096]), name='fw2'),
-            'outw': tf.Variable(tf.random_normal([4096, self.num_classes]), name='outw')
+            'c1': tf.Variable(tf.truncated_normal([4, 4, 3, 36])),
+            'c2': tf.Variable(tf.truncated_normal([3, 3, 36, 48])),
+            'f1': tf.Variable(tf.truncated_normal([2352, 512])),
+            'f2': tf.Variable(tf.truncated_normal([512, 512])),
+            'out': tf.Variable(tf.truncated_normal([512, self.num_classes]))
         }
         self.biases = {
-            'b1': tf.Variable(tf.random_normal([64])),
-            'b2': tf.Variable(tf.random_normal([64])),
-            'b3': tf.Variable(tf.random_normal([128])),
-            'b4': tf.Variable(tf.random_normal([128])),
-            'b5': tf.Variable(tf.random_normal([256])),
-            'b6': tf.Variable(tf.random_normal([256])),
-            'b7': tf.Variable(tf.random_normal([256])),
-            'b8': tf.Variable(tf.random_normal([512])),
-            'b9': tf.Variable(tf.random_normal([512])),
-            'b10': tf.Variable(tf.random_normal([512])),
-            'b11': tf.Variable(tf.random_normal([512])),
-            'b12': tf.Variable(tf.random_normal([512])),
-            'b13': tf.Variable(tf.random_normal([512])),
-            'fb1': tf.Variable(tf.random_normal([4096]), name='fb1'),
-            'fb2': tf.Variable(tf.random_normal([4096]), name='fb2'),
-            'outb': tf.Variable(tf.random_normal([self.num_classes]), name='outb')
+            'c1': tf.Variable(tf.truncated_normal([36])),
+            'c2': tf.Variable(tf.truncated_normal([48])),
+            'f1': tf.Variable(tf.truncated_normal([512])),
+            'f2': tf.Variable(tf.truncated_normal([512])),
+            'out': tf.Variable(tf.truncated_normal([self.num_classes]))
         }
 
-        conv_1 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(self.X, self.weights['c1'], [1,1,1,1], 'SAME'),
-                                           self.biases['b1']))
-        conv_2 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_1, self.weights['c2'], [1,1,1,1], 'SAME'),
-                                           self.biases['b2']))
-        pool_1 = tf.nn.max_pool(conv_2, [1,2,2,1], [1,2,2,1], 'SAME')
+        # print('Input: ' + str(self.X.get_shape()))
+        conv1 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(self.X, self.weights['c1'], [1,1,1,1], 'SAME'), self.biases['c1']))
+        # print('conv1: ' + str(conv1.get_shape()))
+        pool1 = tf.nn.max_pool(conv1, [1,2,2,1], [1,2,2,1], 'SAME')
+        # print('pool1: ' + str(pool1.get_shape()))
 
-        conv_3 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(pool_1, self.weights['c3'], [1,1,1,1], 'SAME'),
-                                           self.biases['b3']))
-        conv_4 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_3, self.weights['c4'], [1,1,1,1], 'SAME'),
-                                           self.biases['b4']))
-        pool_2 = tf.nn.max_pool(conv_4, [1,2,2,1], [1,2,2,1], 'VALID')
+        conv2 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(pool1, self.weights['c2'], [1,1,1,1], 'SAME'), self.biases['c2']))
+        # print('conv2: ' + str(conv2.get_shape()))
+        pool2 = tf.nn.max_pool(conv2, [1,2,2,1], [1,2,2,1], 'SAME')
+        # print('pool2: ' + str(pool2.get_shape()))
 
-        conv_5 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(pool_2, self.weights['c5'], [1,1,1,1], 'SAME'),
-                                           self.biases['b5']))
-        conv_6 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_5, self.weights['c6'], [1,1,1,1], 'SAME'),
-                                           self.biases['b6']))
-        conv_7 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_6, self.weights['c7'], [1,1,1,1], 'SAME'),
-                                           self.biases['b7']))
-        pool_3 = tf.nn.max_pool(conv_7, [1,2,2,1], [1,2,2,1], 'SAME')
-
-        conv_8 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(pool_3, self.weights['c8'], [1,1,1,1], 'SAME'),
-                                           self.biases['b8']))
-        conv_9 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_8, self.weights['c9'], [1,1,1,1], 'SAME'),
-                                           self.biases['b9']))
-        conv_10 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_9, self.weights['c10'], [1,1,1,1], 'SAME'),
-                                            self.biases['b10']))
-        pool_4 = tf.nn.max_pool(conv_10, [1,2,2,1], [1,2,2,1], 'SAME')
-
-        conv_11 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(pool_4, self.weights['c11'], [1,1,1,1], 'SAME'),
-                                            self.biases['b11']))
-        conv_12 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_11, self.weights['c12'], [1,1,1,1], 'SAME'),
-                                            self.biases['b12']))
-        conv_13 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv_12, self.weights['c13'], [1,1,1,1], 'SAME'),
-                                            self.biases['b13']))
-        pool_5 = tf.nn.max_pool(conv_13, [1,2,2,1], [1,2,2,1], 'SAME')
-
-        fc1 = tf.reshape(pool_5, [-1, self.weights['fw1'].get_shape().as_list()[0]])
-        full_1 = tf.nn.dropout(tf.nn.relu(tf.nn.bias_add(tf.matmul(fc1, self.weights['fw1']), self.biases['fb1'])),
-                                   self.Drop)
-        full_2 = tf.nn.dropout(tf.nn.relu(tf.nn.bias_add(tf.matmul(full_1, self.weights['fw2']), self.biases['fb2'])),
-                                   self.Drop)
-        output = tf.nn.bias_add(tf.matmul(full_2, self.weights['outw']), self.biases['outb'])
+        flat = tf.reshape(pool2, [-1, 2352])
+        # print('flat: ' + str(flat.get_shape()))
+        full1 = tf.nn.dropout(tf.nn.relu(tf.add(tf.matmul(flat, self.weights['f1']), self.biases['f1'])), self.Drop)
+        # print('full1: ' + str(full1.get_shape()))
+        full2 = tf.nn.dropout(tf.nn.relu(tf.add(tf.matmul(full1, self.weights['f2']), self.biases['f2'])), self.Drop)
+        # print('full2: ' + str(full2.get_shape()))
+        output = tf.add(tf.matmul(full2, self.weights['out']), self.biases['out'])
+        # print('Output: ' + str(output.get_shape()))
+        # print('Output: ' + str(output.get_shape()))
         return output
 
     def set_loss_params(self, weights=None, beta=0.1):
@@ -141,14 +97,14 @@ class Model:
                                                   momentum=self.momentum, use_locking=self.use_locking,
                                                   centered=self.centered)
         if self.bootstrap:
-            final_vars = [self.weights['fw1'], self.weights['fw2'], self.weights['outw'],
-                    self.biases['fb1'], self.biases['fb2'], self.biases['outb']]
+            final_vars = self.weights['f2'], self.weights['out'], self.biases['f2'], self.biases['out']
             return optimiser.minimize(loss, var_list=final_vars)
         else:
             return optimiser.minimize(loss)
 
-    def converged(self, epochs, min_epochs=2, diff=5.0, converge_len=5):
+    def converged(self, epochs, min_epochs=100, diff=2.0, converge_len=10):
         if self.bootstrap:
+            min_epochs = 10
             diff = 0.5
             converge_len = 10
         if len(self.losses) > min_epochs and epochs == -1:
@@ -196,16 +152,16 @@ class Model:
                     image_batch, label_batch = sess.run(train_next_batch)
                     _, cost = sess.run([optimiser, loss], feed_dict={self.X: image_batch, self.Y: label_batch, self.Drop: .5})
                     # print(str(step).zfill(5) + '/' + str(train_batches) + ' Loss: ' + str((sum(cost) / len(cost))))
-                    train_loss += sum(sum(cost) / len(cost)) / 2
+                    train_loss += np.average(cost)
                 epoch += 1
                 sess.run(val_init_op)
                 val_loss, val_acc = 0, 0
                 for step in range(val_batches):
                     image_batch, label_batch = sess.run(val_next_batch)
                     acc, cost = sess.run([accuracy, loss], feed_dict={self.X: image_batch, self.Y: label_batch, self.Drop:1.})
-                    val_loss += sum(sum(cost) / len(cost)) / 2
+                    val_loss += np.average(cost)
                     val_acc += acc
-                self.losses.append(val_loss)
+                self.losses.append(val_loss / val_batches)
                 if self.verbose and epoch % intervals == 0:
                     message = 'Epoch: ' + str(epoch).zfill(4)
                     message += ' Training Loss: {:.4f}'.format(train_loss / train_batches)

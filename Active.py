@@ -37,7 +37,7 @@ class Active:
             model.set_loss_params(weights=data.get_weights())
         return model.train(data)
 
-    def train_predict(self, data, verbose=True):
+    def train_predict(self, data, verbose=True, bootstrap=True):
         if verbose:
             print('\n\nQuestions asked: ' + str(self.questions_asked))
             print('Data length: ' + str(len(data.train_y)))
@@ -45,11 +45,11 @@ class Active:
             print('\n\nQuestions asked: ' + str(self.questions_asked), file=open('results.txt', 'a'))
             print('Data length: ' + str(len(data.train_y)), file=open('results.txt', 'a'))
             print('Data Balance: ' + str(data.check_balance()) + '\n', file=open('results.txt', 'a'))
-        model = self.new_model(verbose, True)
+        model = self.new_model(verbose, bootstrap)
         if self.model.loss_weights is not None:
             model.set_loss_params(weights=data.get_weights())
         accuracy, f1_score = model.train(data)
-        return model.predict(data)
+        return model.predict(data), accuracy, f1_score
 
     def ranking(self, predictions, num_bootstraps):
         for i in range(len(predictions)):
@@ -84,7 +84,7 @@ class Active:
             if len(self.data.data_x[i]) == 0:
                 print(i)
         f1_scores = []
-        _, self.f1_score = self.train(self.data)
+        predictions, _, self.f1_score = self.train(self.data)
         f1_scores.append(self.f1_score)
 
         while self.budget != self.questions_asked and self.target > self.f1_score:
@@ -98,7 +98,7 @@ class Active:
             for i in range(num_bootstraps):
                 print('\nBootstrap: ' + str(i))
                 print('\nBootstrap: ' + str(i), file=open('results.txt', 'a'))
-                predictions = self.train_predict(bootstraps[i], verbose=False)
+                predictions, _, _ = self.train_predict(bootstraps[i], verbose=False)
                 self.ranking(predictions, num_bootstraps)
             indices = self.get_index(batch_size)
             self.data.set_training_data(indices)

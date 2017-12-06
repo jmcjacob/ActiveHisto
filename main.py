@@ -21,22 +21,22 @@ def train():
     data.load_test_data(sys.argv[3])
 
     # Train a single model with all of the Data.
-    # tempdata = copy(data)
-    # tempdata.set_training_data(range(len(tempdata.data_y)))
-    # model = Model([26, 26, 3], 2)
-    # model.set_loss_params(weights=tempdata.get_weights())
-    # accuracy, f1_score = model.train(tempdata, epochs=1, intervals=1, batch_size=100)
-    # print('Accuracy: ' + str(accuracy))
-    # print('Accuracy: ' + str(accuracy), file=open('results.txt', 'a'))
-    # print('F1-Score: ' + str(f1_score))
-    # print('F1-Score: ' + str(f1_score), file=open('results.txt', 'a'))
+    tempdata = copy(data)
+    tempdata.set_training_data(range(len(tempdata.data_y)))
+    model = Model([26, 26, 3], 2)
+    model.set_loss_params(weights=tempdata.get_weights())
+    accuracy, f1_score = model.train(tempdata, epochs=1, batch_size=100, intervals=1)
+    print('Accuracy: ' + str(accuracy))
+    print('Accuracy: ' + str(accuracy), file=open('results.txt', 'a'))
+    print('F1-Score: ' + str(f1_score))
+    print('F1-Score: ' + str(f1_score), file=open('results.txt', 'a'))
 
     # Train with Active Learning.
     data.set_random_balanced_data(5)
     model = Model([26, 26, 3], 2)
-    # model.set_loss_params(weights=data.get_weights())
+    model.set_loss_params(weights=data.get_weights())
     active = Active(data, model, 10, 1., balance)
-    f1_scores = active.run(2, 100, 5)
+    f1_scores = active.run(100, 100, 2)
     print(f1_scores)
 
 

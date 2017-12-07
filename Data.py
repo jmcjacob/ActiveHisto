@@ -52,6 +52,15 @@ class Data:
                 lowest = len(self.data_x[i])
         print(lowest)
 
+    def reduce_data(self, indices):
+        temp_x, temp_y = [], []
+        for i in range(len(self.data_x)):
+            if i in indices:
+                temp_x.append(self.data_x)
+                temp_y.append(self.data_y)
+        self.data_x = temp_x
+        self.data_y = temp_y
+
     def make_val_set(self):
         self.train_x += self.val_x
         self.train_y += self.val_y

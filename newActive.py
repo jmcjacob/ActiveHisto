@@ -34,7 +34,7 @@ class Active:
         for region in predictions:
             regions = []
             for patch in region:
-                regions.append(min(patch))
+                regions.append(1 - max(patch))
         if False:
             shortlist = [i[1] for i in sorted(((value, index) for index, value in enumerate(regions)),
                                           reverse=True)[:length]]

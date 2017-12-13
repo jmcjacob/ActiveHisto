@@ -33,15 +33,17 @@ class Model:
 
     def create_model(self):
         self.weights = {
-            'c1': tf.Variable(tf.truncated_normal([4, 4, 3, 36])),
-            'c2': tf.Variable(tf.truncated_normal([3, 3, 36, 48])),
-            'f1': tf.Variable(tf.truncated_normal([2352, 512])),
+            'c1': tf.Variable(tf.truncated_normal([3, 3, 3, 64])),
+            'c2': tf.Variable(tf.truncated_normal([3, 3, 64, 64])),
+            'c3': tf.Variable(tf.truncated_normal([3, 3, 64, 64])),
+            'f1': tf.Variable(tf.truncated_normal([1024, 512])),
             'f2': tf.Variable(tf.truncated_normal([512, 512])),
             'out': tf.Variable(tf.truncated_normal([512, self.num_classes]))
         }
         self.biases = {
-            'c1': tf.Variable(tf.truncated_normal([36])),
-            'c2': tf.Variable(tf.truncated_normal([48])),
+            'c1': tf.Variable(tf.truncated_normal([64])),
+            'c2': tf.Variable(tf.truncated_normal([64])),
+            'c3': tf.Variable(tf.truncated_normal([64])),
             'f1': tf.Variable(tf.truncated_normal([512])),
             'f2': tf.Variable(tf.truncated_normal([512])),
             'out': tf.Variable(tf.truncated_normal([self.num_classes]))
@@ -58,7 +60,12 @@ class Model:
         pool2 = tf.nn.max_pool(conv2, [1,2,2,1], [1,2,2,1], 'SAME')
         # print('pool2: ' + str(pool2.get_shape()))
 
-        flat = tf.reshape(pool2, [-1, 2352])
+        conv3 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(pool2, self.weights['c3'], [1,1,1,1], 'SAME'), self.biases['c3']))
+        # print('conv3: ' + str(conv3.get_shape()))
+        pool3 = tf.nn.max_pool(conv3, [1,2,2,1], [1,2,2,1], 'SAME')
+        print('pool3: ' + str(pool3.get_shape()))
+
+        flat = tf.reshape(pool3, [-1, 1024])
         # print('flat: ' + str(flat.get_shape()))
         full1 = tf.nn.dropout(tf.nn.relu(tf.add(tf.matmul(flat, self.weights['f1']), self.biases['f1'])), self.Drop)
         # print('full1: ' + str(full1.get_shape()))
@@ -86,10 +93,16 @@ class Model:
         with tf.device('/device:GPU:0'):
             if self.loss_weights is not None:
                 print(self.loss_weights)
-                return tf.nn.weighted_cross_entropy_with_logits(logits=tf.nn.softmax(self.model),
+                loss = tf.nn.weighted_cross_entropy_with_logits(logits=tf.nn.softmax(self.model),
                                                                 targets=self.Y, pos_weight=self.loss_weights)
             else:
-                return tf.nn.softmax_cross_entropy_with_logits(logits=self.model, labels=self.Y)
+                loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.model, labels=self.Y)
+            loss += self.beta + tf.nn.l2_loss(self.weights['c2']) + self.beta + tf.nn.l2_loss(self.biases['c2'])
+            loss += self.beta + tf.nn.l2_loss(self.weights['c3']) + self.beta + tf.nn.l2_loss(self.biases['c3'])
+            loss += self.beta + tf.nn.l2_loss(self.weights['f1']) + self.beta + tf.nn.l2_loss(self.biases['f1'])
+            loss += self.beta + tf.nn.l2_loss(self.weights['f2']) + self.beta + tf.nn.l2_loss(self.biases['f2'])
+            loss += self.beta + tf.nn.l2_loss(self.weights['out']) + self.beta + tf.nn.l2_loss(self.biases['out'])
+            return loss
 
     def optimise(self, loss):
         with tf.device('/device:GPU:0'):
@@ -207,7 +220,7 @@ class Model:
             sess.run(data_init_op)
             for step in range(batches):
                 image_batch = sess.run(next_batch)
-                predictions += sess.run(tf.nn.softmax(self.model),
+                predictions += sess.run(self.model,
                                         feed_dict={self.X: image_batch, self.Drop:1.}).tolist()
         slice_predictions.append(predictions[0:indices[0]])
         for i in range(1, len(indices)):

@@ -69,7 +69,7 @@ class Model:
         # print('flat: ' + str(flat.get_shape()))
         full1 = tf.nn.dropout(tf.nn.relu(tf.add(tf.matmul(flat, self.weights['f1']), self.biases['f1'])), self.Drop)
         # print('full1: ' + str(full1.get_shape()))
-        full2 = tf.nn.dropout(tf.nn.relu(tf.add(tf.matmul(full1, self.weights['f2']), self.biases['f2'])), self.Drop)
+        full2 = tf.nn.dropout(tf.nn.softsign(tf.add(tf.matmul(full1, self.weights['f2']), self.biases['f2'])), self.Drop)
         # print('full2: ' + str(full2.get_shape()))
         output = tf.add(tf.matmul(full2, self.weights['out']), self.biases['out'])
         # print('Output: ' + str(output.get_shape()))
@@ -220,7 +220,7 @@ class Model:
             sess.run(data_init_op)
             for step in range(batches):
                 image_batch = sess.run(next_batch)
-                predictions += sess.run(self.model,
+                predictions += sess.run(tf.nn.softmax(self.model),
                                         feed_dict={self.X: image_batch, self.Drop:1.}).tolist()
         slice_predictions.append(predictions[0:indices[0]])
         for i in range(1, len(indices)):

@@ -27,8 +27,7 @@ class Model:
     def __copy__(self):
         model = Model(self.input_shape, self.num_classes, self.verbose)
         model.set_loss_params(self.loss_weights, self.beta)
-        model.set_optimise_params(self.learning_rate, self.decay, self.momentum, self.epsilon, self.use_locking,
-                                  self.centered)
+        model.set_optimise_params(self.learning_rate, self.beta1, self.beta2, self.epsilon, self.use_locking)
         return model
 
     def create_model(self):
@@ -80,14 +79,12 @@ class Model:
         self.beta = beta
         self.loss_weights = weights
 
-    def set_optimise_params(self, learning_rate=0.001, decay=0.9, momentum=0.0, epsilon=1e-10,
-                            use_locking=False, centered=False):
+    def set_optimise_params(self, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08, use_locking=False):
         self.learning_rate = learning_rate
-        self.decay = decay
-        self.momentum = momentum
+        self.beta1 = beta1
+        self.beta2 = beta2
         self.epsilon = epsilon
         self.use_locking = use_locking
-        self.centered = centered
 
     def loss(self):
         with tf.device('/device:GPU:0'):
@@ -106,9 +103,8 @@ class Model:
 
     def optimise(self, loss):
         with tf.device('/device:GPU:0'):
-            optimiser = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate, decay=self.decay,
-                                                  momentum=self.momentum, use_locking=self.use_locking,
-                                                  centered=self.centered)
+            optimiser = tf.train.AdamOptimizer(learning_rate=self.learning_rate, beta1=self.beta1, beta2=self.beta2,
+                                              epsilon=self.epsilon, use_locking=self.use_locking)
         if self.bootstrap:
             final_vars = self.weights['f2'], self.weights['out'], self.biases['f2'], self.biases['out']
             return optimiser.minimize(loss, var_list=final_vars)

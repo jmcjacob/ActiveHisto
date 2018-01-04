@@ -31,11 +31,13 @@ class Active:
         return predictions, accuracy, f1_score
 
     def shortlist(self, predictions, length):
+        regions = []
         for region in predictions:
-            regions = []
+            temp = []
             for patch in region:
-                regions.append(1 - max(patch))
-        if False:
+                temp.append(1 - max(patch))
+            regions.append(max(temp))
+        if True:
             shortlist = [i[1] for i in sorted(((value, index) for index, value in enumerate(regions)),
                                           reverse=True)[:length]]
         else:
@@ -45,8 +47,8 @@ class Active:
                     value = random.random()
                     if regions[i] > value:
                         shortlist.append(i)
-            while shortlist > length:
-                del shortlist[random.randint(len(shortlist)-1)]
+            while len(shortlist) > length:
+                del shortlist[random.randint(0, len(shortlist)-1)]
         return shortlist
 
     def run(self, num_bootstraps, bootstrap_size, update_size):
@@ -61,4 +63,3 @@ class Active:
                 print('\nBootstrap: ' + str(i))
                 bootstraps[i].reduce_data(shortlist)
                 predictions, _, _ = self.train_predict(bootstraps[i], False, True, bootstraps[i].get_weights())
-                

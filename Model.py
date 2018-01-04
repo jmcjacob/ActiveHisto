@@ -62,7 +62,7 @@ class Model:
         conv3 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(pool2, self.weights['c3'], [1,1,1,1], 'SAME'), self.biases['c3']))
         # print('conv3: ' + str(conv3.get_shape()))
         pool3 = tf.nn.max_pool(conv3, [1,2,2,1], [1,2,2,1], 'SAME')
-        print('pool3: ' + str(pool3.get_shape()))
+        # print('pool3: ' + str(pool3.get_shape()))
 
         flat = tf.reshape(pool3, [-1, 1024])
         # print('flat: ' + str(flat.get_shape()))

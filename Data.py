@@ -92,21 +92,41 @@ class Data:
             for i in range(len(self.data_x)):
                 if len(self.data_x[i]) == 0:
                     print(i)
+        while Counter(self.train_y)[0] != Counter(self.train_y)[1]:
+            if Counter(self.train_y)[0] > Counter(self.train_y)[1]:
+                index = random.choice([i for i, j in enumerate(self.train_y) if j == 0])
+            elif Counter(self.train_y)[0] < Counter(self.train_y)[1]:
+                index = random.choice([i for i, j in enumerate(self.train_y) if j == 1])
+            del self.train_y[index]
+            del self.train_x[index]
+        print('Data Balance: ' + str(Counter(self.train_y)))
         self.make_val_set()
 
 
     def set_training_data(self, indices):
+        temp_x = []
+        temp_y = []
         if type(indices) != int:
             for index in sorted(indices, reverse=True):
-                self.train_x += self.data_x[index]
-                self.train_y += self.data_y[index]
+                temp_x += self.data_x[index]
+                temp_y += self.data_y[index]
                 self.data_x.pop(index)
                 self.data_y.pop(index)
         else:
-            self.train_x += self.data_x[indices]
-            self.train_y += self.data_y[indices]
+            temp_x += self.data_x[indices]
+            temp_y += self.data_y[indices]
             self.data_x.pop(indices)
             self.data_y.pop(indices)
+        while Counter(temp_y)[0] != Counter(temp_y)[1]:
+            if Counter(temp_y)[0] > Counter(temp_y)[1]:
+                index = random.choice([i for i, j in enumerate(temp_y) if j == 0])
+            elif Counter(temp_y)[0] < Counter(temp_y)[1]:
+                index = random.choice([i for i, j in enumerate(temp_y) if j == 1])
+            del temp_y[index]
+            del temp_x[index]
+        self.train_x += temp_x
+        self.train_y += temp_y
+        print('Data Balance: ' + str(Counter(self.train_y)))
         self.make_val_set()
 
     def set_data(self, train_x, train_y):

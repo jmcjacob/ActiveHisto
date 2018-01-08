@@ -1,5 +1,6 @@
 import copy
 import random
+from collections import Counter
 
 
 class Active:
@@ -27,6 +28,7 @@ class Active:
         if self.model.loss_weights is not None:
             model.set_loss_params(weights=weights)
         accuracy, f1_score = model.train(data)
+        print('Number of predictions: ' + str(len(data.data_y)))
         predictions = model.predict(data)
         return predictions, accuracy, f1_score
 
@@ -62,4 +64,5 @@ class Active:
             for i in range(num_bootstraps):
                 print('\nBootstrap: ' + str(i))
                 bootstraps[i].reduce_data(shortlist)
+                print('Bootstrap Data Balance ' + str(Counter(bootstraps[i].train_y)))
                 predictions, _, _ = self.train_predict(bootstraps[i], False, True, bootstraps[i].get_weights())

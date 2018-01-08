@@ -53,12 +53,11 @@ class Data:
         print(lowest)
 
     def reduce_data(self, indices):
-        # Needs Balancing
         temp_x, temp_y = [], []
         for i in range(len(self.data_x)):
             if i in indices:
-                temp_x.append(self.data_x)
-                temp_y.append(self.data_y)
+                temp_x.append(self.data_x[i])
+                temp_y.append(self.data_y[i])
         self.data_x = temp_x
         self.data_y = temp_y
 

@@ -1,5 +1,5 @@
 import copy
-import rand
+import random
 import numpy as np
 from collections import Counter
 
@@ -47,11 +47,11 @@ class Active:
             shortlist = []
             while len(shortlist) < length:
                 for i in range(len(regions)):
-                    value = rand.rand()
+                    value = random.random()
                     if regions[i] > value:
                         shortlist.append(i)
             while len(shortlist) > length:
-                del shortlist[rand.randint(0, len(shortlist) - 1)]
+                del shortlist[random.randint(0, len(shortlist) - 1)]
         return shortlist
 
     def selection(self, bootstrap_predictions, shortlist, update_size):
@@ -70,9 +70,11 @@ class Active:
 
     def run(self, num_bootstraps, bootstrap_size, update_size):
         f1_scores = []
+        accurices = []
         while self.budget != self.questions:
-            predictions, _, f1_score = self.train_predict(self.data, True, False, self.data.get_weights())
+            predictions, acc, f1_score = self.train_predict(self.data, True, False, self.data.get_weights())
             f1_scores.append(f1_score)
+            accurices.append(acc)
             shortlist = self.shortlist(predictions, 500)
             bootstraps = self.data.get_bootstraps(num_bootstraps, bootstrap_size, 0.2, False)
             bootstrap_predictions = []
@@ -86,4 +88,6 @@ class Active:
             indices = self.selection(bootstrap_predictions, shortlist, update_size)
             self.data.set_training_data(indices)
             self.questions += 1
-        print(f1_scores)
+        print('F1 scores: ' + str(f1_scores))
+        print('Accurices: ' + str(accurices))
+        return f1_scores, accurices

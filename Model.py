@@ -111,11 +111,7 @@ class Model:
         else:
             return optimiser.minimize(loss)
 
-    def converged(self, epochs, min_epochs=100, diff=2.0, converge_len=10):
-        if self.bootstrap:
-            min_epochs = 10
-            diff = 0.5
-            converge_len = 10
+    def converged(self, epochs, min_epochs=50, diff=0.5, converge_len=10):
         if len(self.losses) > min_epochs and epochs == -1:
             losses = self.losses[-converge_len:]
             for loss in losses[: (converge_len - 1)]:
@@ -180,25 +176,23 @@ class Model:
                     print(message, file=open('results.txt', 'a'))
             if not self.bootstrap:
                 saver.save(sess, 'tmp/model.ckpt')
-            sess.run(testing_init_op)
-            test_acc = 0
-            predictions, labels = [], []
-            for step in range(test_batches):
-                image_batch, label_batch = sess.run(test_next_batch)
-                acc, y_pred = sess.run([accuracy, tf.nn.softmax(self.model)], feed_dict={self.X:image_batch,
-                                                                                         self.Y: label_batch,
-                                                                                         self.Drop: 1.})
-                test_acc += acc
-                for i in range(len(label_batch) - 1):
-                    labels.append(np.argmax(label_batch[i]))
-                    predictions.append(np.argmax(y_pred[i]))
-        accuracy = test_acc / test_batches
-        f1 = f1_score(labels, predictions)
-        print('Model trained with an Accuracy: {:.4f}'.format(accuracy) + ' F1-Score: {:.4f}'.format(f1) + ' in ' +
-              str(epoch) + ' epochs', file=open('results.txt', 'a'))
-        print('Model trained with an Accuracy: {:.4f}'.format(accuracy) + ' F1-Score: {:.4f}'.format(f1) + ' in ' +
-              str(epoch) + ' epochs')
-        return accuracy, f1
+                sess.run(testing_init_op)
+                test_acc = 0
+                predictions, labels = [], []
+                for step in range(test_batches):
+                    image_batch, label_batch = sess.run(test_next_batch)
+                    acc, y_pred = sess.run([accuracy, tf.nn.softmax(self.model)], feed_dict={self.X:image_batch,
+                                                                                             self.Y: label_batch,
+                                                                                             self.Drop: 1.})
+                    test_acc += acc
+                    for i in range(len(label_batch) - 1):
+                        labels.append(np.argmax(label_batch[i]))
+                        predictions.append(np.argmax(y_pred[i]))
+                accuracy = test_acc / test_batches
+                f1 = f1_score(labels, predictions)
+                print('Model trained with an Accuracy: {:.4f}'.format(accuracy) + ' F1-Score: {:.4f}'.format(f1) + ' in ' +
+                      str(epoch) + ' epochs')
+                return accuracy, f1
 
     def predict(self, data):
         slice_predictions = []

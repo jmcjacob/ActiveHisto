@@ -1,22 +1,15 @@
 import copy
+import rand
 import numpy as np
+from collections import Counter
 
 
 class Active:
-    def __init__(self, data, model, budget, target, balance):
+    def __init__(self, data, model, budget):
         self.data = data
         self.model = model
         self.budget = budget
-        self.target = target
-        self.balance = balance
-        self.f1_score = 0.0
-        self.questions_asked = 0
-        self.slide_uncertainty = []
-        for i in range(len(self.data.data_y)):
-            temp = []
-            for j in range(len(self.data.data_y[i])):
-                temp.append(0)
-            self.slide_uncertainty.append(temp)
+        self.questions = 0
 
     def new_model(self, verbose, bootstrap):
         model = copy.copy(self.model)
@@ -24,86 +17,73 @@ class Active:
         model.bootstrap = bootstrap
         return model
 
-    def train(self, data, verbose=True):
-        if verbose:
-            print('\n\nQuestions asked: ' + str(self.questions_asked))
-            print('Data length: ' + str(len(data.train_y)))
-            print('Data Balance: ' + str(data.check_balance()) + '\n')
-            print('\n\nQuestions asked: ' + str(self.questions_asked), file=open('results.txt', 'a'))
-            print('Data length: ' + str(len(data.train_y)), file=open('results.txt', 'a'))
-            print('Data Balance: ' + str(data.check_balance()) + '\n', file=open('results.txt', 'a'))
-        model = self.new_model(verbose, False)
-        if self.model.loss_weights is not None:
-            model.set_loss_params(weights=data.get_weights())
-        return model.train(data)
-
-    def train_predict(self, data, verbose=True, bootstrap=True):
-        if verbose:
-            print('\n\nQuestions asked: ' + str(self.questions_asked))
-            print('Data length: ' + str(len(data.train_y)))
-            print('Data Balance: ' + str(data.check_balance()) + '\n')
-            print('\n\nQuestions asked: ' + str(self.questions_asked), file=open('results.txt', 'a'))
-            print('Data length: ' + str(len(data.train_y)), file=open('results.txt', 'a'))
-            print('Data Balance: ' + str(data.check_balance()) + '\n', file=open('results.txt', 'a'))
+    def train(self, data, verbose, bootstrap, weights=None):
         model = self.new_model(verbose, bootstrap)
         if self.model.loss_weights is not None:
-            model.set_loss_params(weights=data.get_weights())
+            model.set_loss_params(weights=weights)
         accuracy, f1_score = model.train(data)
-        return model.predict(data), accuracy, f1_score
+        return accuracy, f1_score
 
-    def ranking(self, predictions, num_bootstraps):
-        for i in range(len(predictions)):
-            for j in range(len(predictions[i])):
-                index = np.argmax(predictions[i][j])
-                temp_value = predictions[i][j][index]
-                self.slide_uncertainty[i][j] += np.divide(temp_value, num_bootstraps)
+    def train_predict(self, data, verbose, bootstrap, weights=None):
+        model = self.new_model(verbose, bootstrap)
+        if self.model.loss_weights is not None:
+            model.set_loss_params(weights=weights)
+        accuracy, f1_score = model.train(data)
+        print('Number of predictions: ' + str(len(data.data_y)))
+        predictions = model.predict(data)
+        return predictions, accuracy, f1_score
 
-    def get_index(self, batch_size):
-        slide_max = np.zeros(len(self.slide_uncertainty))
-        for i in range(len(self.slide_uncertainty)):
-            temp_array = []
-            for j in range(len(self.slide_uncertainty[i])):
-                temp_array.append(np.multiply(self.slide_uncertainty[i][j],
-                                              (1 - self.slide_uncertainty[i][j])))
-            if len(temp_array) != 0:
-                slide_max[i] = max(temp_array)
-            else:
-                print(i)
-                print(len(self.slide_uncertainty))
-                print(j)
-                print(len(self.slide_uncertainty[i]))
-                print('Something is wrong!')
+    def shortlist(self, predictions, length):
+        regions = []
+        for region in predictions:
+            temp = []
+            for patch in region:
+                temp.append(1 - max(patch))
+            regions.append(max(temp))
+        if True:
+            shortlist = [i[1] for i in sorted(((value, index) for index, value in enumerate(regions)),
+                                          reverse=True)[:length]]
+        else:
+            shortlist = []
+            while len(shortlist) < length:
+                for i in range(len(regions)):
+                    value = rand.rand()
+                    if regions[i] > value:
+                        shortlist.append(i)
+            while len(shortlist) > length:
+                del shortlist[rand.randint(0, len(shortlist) - 1)]
+        return shortlist
+
+    def selection(self, bootstrap_predictions, shortlist, update_size):
+        avg_predictions = []
+        for i in range(len(bootstrap_predictions[0])):
+            temp = 0
+            for j in range(len(bootstrap_predictions)):
+                for prediction in bootstrap_predictions[j][i]:
+                    temp += (1 - max(prediction))
+            avg_predictions.append(temp / len(bootstrap_predictions[0]))
+        indices = np.array(avg_predictions).argsort()[-update_size:][::-1]
         return_list = []
-        for _ in range(batch_size):
-            return_list.append(np.argmax(slide_max))
-            slide_max[np.argmax(slide_max)] = 0.0
+        for index in indices:
+            return_list.append(shortlist[index])
         return return_list
 
-    def run(self, num_bootstraps, bootstap_size, batch_size):
-        for i in range(len(self.data.data_x)):
-            if len(self.data.data_x[i]) == 0:
-                print(i)
+    def run(self, num_bootstraps, bootstrap_size, update_size):
         f1_scores = []
-        predictions, _, self.f1_score = self.train(self.data)
-        f1_scores.append(self.f1_score)
-
-        while self.budget != self.questions_asked and self.target > self.f1_score:
-            self.slide_uncertainty = []
-            for i in range(len(self.data.data_y)):
-                temp = []
-                for j in range(len(self.data.data_y[i])):
-                    temp.append(0)
-                self.slide_uncertainty.append(temp)
-            bootstraps = self.data.get_bootstraps(num_bootstraps, bootstap_size, 0.2, self.balance)
+        while self.budget != self.questions:
+            predictions, _, f1_score = self.train_predict(self.data, True, False, self.data.get_weights())
+            f1_scores.append(f1_score)
+            shortlist = self.shortlist(predictions, 500)
+            bootstraps = self.data.get_bootstraps(num_bootstraps, bootstrap_size, 0.2, False)
+            bootstrap_predictions = []
             for i in range(num_bootstraps):
                 print('\nBootstrap: ' + str(i))
-                print('\nBootstrap: ' + str(i), file=open('results.txt', 'a'))
-                predictions, _, _ = self.train_predict(bootstraps[i], verbose=False)
-                self.ranking(predictions, num_bootstraps)
-            indices = self.get_index(batch_size)
+                bootstraps[i].reduce_data(shortlist)
+                print('Bootstrap Data Balance ' + str(Counter(bootstraps[i].train_y)))
+                predictions, _, _ = self.train_predict(bootstraps[i], False, True, bootstraps[i].get_weights())
+                bootstrap_predictions.append(predictions)
+            print('\n')
+            indices = self.selection(bootstrap_predictions, shortlist, update_size)
             self.data.set_training_data(indices)
-            self.questions_asked += 1
-            _, self.f1_score = self.train(self.data)
-            f1_scores.append(self.f1_score)
-
-        return f1_scores
+            self.questions += 1
+        print(f1_scores)

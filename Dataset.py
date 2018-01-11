@@ -36,7 +36,7 @@ def build_binary_detection_dataset(in_dir, out_dir, patch_size, region_size, ste
                             label = '/miss/'
                         else:
                             continue
-                        patch = border_image[pj-border_size:pj+border_size, pi-border_size:pi+border_size]
+                        patch = border_image[pj-border_size:pj+border_size + 1, pi-border_size:pi+border_size + 1]
                         patches = [patch, cv2.flip(patch, 0), cv2.flip(patch, 1), cv2.flip(patch, 2),
                                    cv2.GaussianBlur(patch, (3, 3), 0.25)]
                         for p in range(len(patches)):

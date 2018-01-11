@@ -1,5 +1,5 @@
 import os
-import random
+import rand
 import numpy as np
 import tensorflow as tf
 from collections import Counter
@@ -69,7 +69,7 @@ class Data:
 
     def set_random_training_data(self, number):
         for _ in range(number):
-            index = random.randint(0, len(self.data_y) - 1)
+            index = rand.randint(0, len(self.data_y) - 1)
             self.train_x += self.data_x[index]
             self.train_y += self.data_y[index]
             self.data_x.pop(index)
@@ -81,9 +81,9 @@ class Data:
             if len(self.data_x[i]) == 0:
                 print('Thing: ' + str(i))
         for _ in range(number):
-            index = random.randint(0, len(self.data_y) - 1)
+            index = rand.randint(0, len(self.data_y) - 1)
             while len(Counter(self.data_y[index])) != 2:
-                index = random.randint(0, len(self.data_y) - 1)
+                index = rand.randint(0, len(self.data_y) - 1)
             self.train_x += self.data_x[index]
             self.train_y += self.data_y[index]
             del self.data_x[index]
@@ -93,9 +93,9 @@ class Data:
                     print(i)
         while Counter(self.train_y)[0] != Counter(self.train_y)[1]:
             if Counter(self.train_y)[0] > Counter(self.train_y)[1]:
-                index = random.choice([i for i, j in enumerate(self.train_y) if j == 0])
+                index = rand.choice([i for i, j in enumerate(self.train_y) if j == 0])
             elif Counter(self.train_y)[0] < Counter(self.train_y)[1]:
-                index = random.choice([i for i, j in enumerate(self.train_y) if j == 1])
+                index = rand.choice([i for i, j in enumerate(self.train_y) if j == 1])
             del self.train_y[index]
             del self.train_x[index]
         print('Data Balance: ' + str(Counter(self.train_y)))
@@ -118,9 +118,9 @@ class Data:
             self.data_y.pop(indices)
         while Counter(temp_y)[0] != Counter(temp_y)[1]:
             if Counter(temp_y)[0] > Counter(temp_y)[1]:
-                index = random.choice([i for i, j in enumerate(temp_y) if j == 0])
+                index = rand.choice([i for i, j in enumerate(temp_y) if j == 0])
             elif Counter(temp_y)[0] < Counter(temp_y)[1]:
-                index = random.choice([i for i, j in enumerate(temp_y) if j == 1])
+                index = rand.choice([i for i, j in enumerate(temp_y) if j == 1])
             del temp_y[index]
             del temp_x[index]
         self.train_x += temp_x

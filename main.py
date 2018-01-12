@@ -2,10 +2,10 @@ import os
 import sys
 import Dataset
 from Data import Data
+from rand import Rand
 from Model import Model
 from Active import Active
 from uncertainty import Uncertainty
-from rand import Rand
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -19,10 +19,11 @@ def supervised():
     model = Model([27, 27, 3], 2)
     model.set_loss_params(weights=data.get_weights())
     accuracy, f1_score = model.train(data)
+    print('Supervised\n', file=open('results.txt', 'a'))
     print('Accuracy: ' + str(accuracy))
-    print('Accuracy: ' + str(accuracy), file=open('results.txt', 'a'))
+    print('Accuracy: ' + str(accuracy) + '\n', file=open('results.txt', 'a'))
     print('F1-Score: ' + str(f1_score))
-    print('F1-Score: ' + str(f1_score), file=open('results.txt', 'a'))
+    print('F1-Score: ' + str(f1_score) + '\n', file=open('results.txt', 'a'))
 
 
 def bootstrap():
@@ -36,9 +37,10 @@ def bootstrap():
     model.set_loss_params(weights=data.get_weights())
     active = Active(data, model, 10)
     f1_scores, accurices = active.run(20, 100, int(sys.argv[4]))
-    print('Update size: ' + sys.argv[4], file=open('results.txt', 'a'))
-    print('F1 Scores: ' + str(f1_scores), file=open('results.txt', 'a'))
-    print('Accuracies: ' + str(accurices), file=open('results.txt', 'a'))
+    print('Bootstrapped Uncertainty\n', file=open('results.txt', 'a'))
+    print('Update size: ' + sys.argv[4] + '\n', file=open('results.txt', 'a'))
+    print('F1 Scores: ' + str(f1_scores) + '\n', file=open('results.txt', 'a'))
+    print('Accuracies: ' + str(accurices) + '\n', file=open('results.txt', 'a'))
 
 
 def rand():
@@ -52,9 +54,10 @@ def rand():
     model.set_loss_params(weights=data.get_weights())
     rand = Rand(data, model, 10)
     f1_scores, accurices = rand.run(int(sys.argv[4]))
-    print('Update size: ' + sys.argv[4], file=open('results.txt', 'a'))
-    print('F1 Scores: ' + str(f1_scores), file=open('results.txt', 'a'))
-    print('Accuracies: ' + str(accurices), file=open('results.txt', 'a'))
+    print('Random Selection\n', file=open('results.txt', 'a'))
+    print('Update size: ' + sys.argv[4] + '\n', file=open('results.txt', 'a'))
+    print('F1 Scores: ' + str(f1_scores) + '\n', file=open('results.txt', 'a'))
+    print('Accuracies: ' + str(accurices) + '\n', file=open('results.txt', 'a'))
 
 
 def uncertainty():
@@ -68,9 +71,10 @@ def uncertainty():
     model.set_loss_params(weights=data.get_weights())
     uncertain = Uncertainty(data, model, 10)
     f1_scores, accurices = uncertain.run(int(sys.argv[4]))
-    print('Update size: ' + sys.argv[4], file=open('results.txt', 'a'))
-    print('F1 Scores: ' + str(f1_scores), file=open('results.txt', 'a'))
-    print('Accuracies: ' + str(accurices), file=open('results.txt', 'a'))
+    print('Uncertainty Selection\n', file=open('results.txt', 'a'))
+    print('Update size: ' + sys.argv[4] + '\n', file=open('results.txt', 'a'))
+    print('F1 Scores: ' + str(f1_scores) + '\n', file=open('results.txt', 'a'))
+    print('Accuracies: ' + str(accurices) + '\n', file=open('results.txt', 'a'))
 
 
 if __name__ == '__main__':

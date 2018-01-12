@@ -173,7 +173,7 @@ class Model:
                     message += ' Validation Accuracy: {:.3f}'.format(val_acc / val_batches)
                     message += ' Validation Loss: {:.4f}'.format(val_loss / val_batches)
                     print(message)
-                    print(message, file=open('results.txt', 'a'))
+                    # print(message, file=open('results.txt', 'a'))
             if not self.bootstrap:
                 saver.save(sess, 'tmp/model.ckpt')
                 sess.run(testing_init_op)

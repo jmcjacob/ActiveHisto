@@ -123,8 +123,14 @@ class Data:
                 index = random.choice([i for i, j in enumerate(temp_y) if j == 1])
             del temp_y[index]
             del temp_x[index]
-        self.train_x += temp_x
-        self.train_y += temp_y
+        if True:
+            self.train_x += temp_x
+            self.train_y += temp_y
+        elif False:
+            self.train_x = temp_x
+            self.train_y = temp_y
+        else:
+            pass
         print('Data Balance: ' + str(Counter(self.train_y)))
         self.make_val_set()
 

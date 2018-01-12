@@ -11,7 +11,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 def supervised():
-    data = Data(0.05)
+    data = Data(0.05, '')
     data.load_data(sys.argv[2])
     data.load_test_data(sys.argv[3])
 
@@ -27,12 +27,12 @@ def supervised():
 
 
 def bootstrap():
-    data = Data(0.05)
+    data = Data(0.05, sys.argv[4])
     data.load_data(sys.argv[2])
     data.load_test_data(sys.argv[3])
 
     # Train with Bootstraped Uncertainty.
-    data.set_random_balanced_data(int(sys.argv[4]))
+    data.set_random_balanced_data(int(sys.argv[5]))
     model = Model([27, 27, 3], 2)
     model.set_loss_params(weights=data.get_weights())
     active = Active(data, model, 10)
@@ -44,12 +44,12 @@ def bootstrap():
 
 
 def rand():
-    data = Data(0.05)
+    data = Data(0.05, sys.argv[4])
     data.load_data(sys.argv[2])
     data.load_test_data(sys.argv[3])
 
     #Train with random selection
-    data.set_random_balanced_data(int(sys.argv[4]))
+    data.set_random_balanced_data(int(sys.argv[5]))
     model = Model([27, 27, 3], 2)
     model.set_loss_params(weights=data.get_weights())
     rand = Rand(data, model, 10)
@@ -61,12 +61,12 @@ def rand():
 
 
 def uncertainty():
-    data = Data(0.05)
+    data = Data(0.05, sys.argv[4])
     data.load_data(sys.argv[2])
     data.load_test_data(sys.argv[3])
 
     #Train with uncertanty selection
-    data.set_random_balanced_data(int(sys.argv[4]))
+    data.set_random_balanced_data(int(sys.argv[5]))
     model = Model([27, 27, 3], 2)
     model.set_loss_params(weights=data.get_weights())
     uncertain = Uncertainty(data, model, 10)

@@ -8,12 +8,13 @@ from sklearn.model_selection import train_test_split
 
 
 class Data:
-    def __init__(self, val_percentage):
+    def __init__(self, val_percentage, add_type):
         self.train_x, self.train_y = [], []
         self.test_x, self.test_y = [], []
         self.val_x, self.val_y = [], []
         self.data_x, self.data_y = [], []
         self.val_percentage = val_percentage
+        self.add_type = add_type
 
     def __copy__(self):
         data = Data(self.val_percentage)
@@ -123,13 +124,13 @@ class Data:
                 index = random.choice([i for i, j in enumerate(temp_y) if j == 1])
             del temp_y[index]
             del temp_x[index]
-        if True:
+        if self.add_type.lower() == 'add':
             self.train_x += temp_x
             self.train_y += temp_y
-        elif False:
+        elif self.add_type.lower == 'replace':
             self.train_x = temp_x
             self.train_y = temp_y
-        else:
+        elif self.add_type == 'merge':
             temp_x = random.sample(self.train_x, len(self.train_x)//2)
             temp_y = random.sample(self.train_y, len(self.train_y) // 2)
             self.train_x = temp_x

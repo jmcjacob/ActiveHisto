@@ -17,21 +17,31 @@ class Active:
         model.bootstrap = bootstrap
         return model
 
-    def train(self, data, verbose, bootstrap, weights=None):
-        model = self.new_model(verbose, bootstrap)
-        if self.model.loss_weights is not None:
-            model.set_loss_params(weights=weights)
-        accuracy, f1_score = model.train(data)
+    def train(self, data, verbose, bootstrap, load):
+        # model = self.new_model(verbose, bootstrap)
+        # if self.model.loss_weights is not None:
+        #     model.set_loss_params(weights=weights)
+        self.model.redefine()
+        self.model.bootstrap = bootstrap
+        self.model.verbose = verbose
+        accuracy, f1_score = self.model.train(data)
         return accuracy, f1_score
 
-    def train_predict(self, data, verbose, bootstrap, weights=None):
-        model = self.new_model(verbose, bootstrap)
-        if self.model.loss_weights is not None:
-            model.set_loss_params(weights=weights)
-        accuracy, f1_score = model.train(data)
+    def train_predict(self, data, verbose, bootstrap, load=False):
+        self.model.redefine()
+        self.model.verbose = verbose
+        if not bootstrap:
+            self.model.bootstrap = False
+            accuracy, f1_score = self.model.train(data, load=load)
+        else:
+            self.model.bootstrap = True
+            self.model.train(data)
         print('Number of predictions: ' + str(len(data.data_y)))
-        predictions = model.predict(data)
-        return predictions, accuracy, f1_score
+        predictions = self.model.predict(data)
+        if not bootstrap:
+            return predictions, accuracy, f1_score
+        else:
+            return predictions
 
     def shortlist(self, predictions, length):
         regions = []
@@ -71,8 +81,9 @@ class Active:
     def run(self, num_bootstraps, bootstrap_size, update_size):
         f1_scores = []
         accurices = []
+        load = False
         while self.budget != self.questions:
-            predictions, acc, f1_score = self.train_predict(self.data, True, False, self.data.get_weights())
+            predictions, acc, f1_score = self.train_predict(self.data, True, False, load=load)
             f1_scores.append(f1_score)
             accurices.append(acc)
             shortlist = self.shortlist(predictions, 500)
@@ -82,12 +93,13 @@ class Active:
                 print('\nBootstrap: ' + str(i))
                 bootstraps[i].reduce_data(shortlist)
                 print('Bootstrap Data Balance ' + str(Counter(bootstraps[i].train_y)))
-                predictions, _, _ = self.train_predict(bootstraps[i], False, True, bootstraps[i].get_weights())
+                predictions = self.train_predict(bootstraps[i], False, True, bootstraps[i].get_weights())
                 bootstrap_predictions.append(predictions)
             print('\n')
             indices = self.selection(bootstrap_predictions, shortlist, update_size)
             self.data.set_training_data(indices)
             self.questions += 1
+            load = True
         print('F1 scores: ' + str(f1_scores))
         print('Accurices: ' + str(accurices))
         return f1_scores, accurices

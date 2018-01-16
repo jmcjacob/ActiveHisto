@@ -14,6 +14,8 @@ def supervised():
     data = Data(0.05, '')
     data.load_data(sys.argv[2])
     data.load_test_data(sys.argv[3])
+    data.training_data()
+    data.make_val_set()
 
     # Train a single model with all of the Data.
     model = Model([27, 27, 3], 2)
@@ -36,9 +38,10 @@ def bootstrap():
     model = Model([27, 27, 3], 2)
     model.set_loss_params(weights=data.get_weights())
     active = Active(data, model, 10)
-    f1_scores, accurices = active.run(20, 100, int(sys.argv[4]))
+    f1_scores, accurices = active.run(100, 100, int(sys.argv[5]))
     print('Bootstrapped Uncertainty\n', file=open('results.txt', 'a'))
-    print('Update size: ' + sys.argv[4] + '\n', file=open('results.txt', 'a'))
+    print('Update type: ' + sys.argv[4] + '\n', file=open('results.txt', 'a'))
+    print('Update size: ' + sys.argv[5] + '\n', file=open('results.txt', 'a'))
     print('F1 Scores: ' + str(f1_scores) + '\n', file=open('results.txt', 'a'))
     print('Accuracies: ' + str(accurices) + '\n', file=open('results.txt', 'a'))
 
@@ -53,9 +56,10 @@ def rand():
     model = Model([27, 27, 3], 2)
     model.set_loss_params(weights=data.get_weights())
     rand = Rand(data, model, 10)
-    f1_scores, accurices = rand.run(int(sys.argv[4]))
+    f1_scores, accurices = rand.run(int(sys.argv[5]))
     print('Random Selection\n', file=open('results.txt', 'a'))
-    print('Update size: ' + sys.argv[4] + '\n', file=open('results.txt', 'a'))
+    print('Update type: ' + sys.argv[4] + '\n', file=open('results.txt', 'a'))
+    print('Update size: ' + sys.argv[5] + '\n', file=open('results.txt', 'a'))
     print('F1 Scores: ' + str(f1_scores) + '\n', file=open('results.txt', 'a'))
     print('Accuracies: ' + str(accurices) + '\n', file=open('results.txt', 'a'))
 
@@ -70,9 +74,10 @@ def uncertainty():
     model = Model([27, 27, 3], 2)
     model.set_loss_params(weights=data.get_weights())
     uncertain = Uncertainty(data, model, 10)
-    f1_scores, accurices = uncertain.run(int(sys.argv[4]))
+    f1_scores, accurices = uncertain.run(int(sys.argv[5]))
     print('Uncertainty Selection\n', file=open('results.txt', 'a'))
-    print('Update size: ' + sys.argv[4] + '\n', file=open('results.txt', 'a'))
+    print('Update type: ' + sys.argv[4] + '\n', file=open('results.txt', 'a'))
+    print('Update size: ' + sys.argv[5] + '\n', file=open('results.txt', 'a'))
     print('F1 Scores: ' + str(f1_scores) + '\n', file=open('results.txt', 'a'))
     print('Accuracies: ' + str(accurices) + '\n', file=open('results.txt', 'a'))
 

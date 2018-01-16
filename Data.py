@@ -17,7 +17,7 @@ class Data:
         self.add_type = add_type
 
     def __copy__(self):
-        data = Data(self.val_percentage)
+        data = Data(self.val_percentage, self.add_type)
         data.data_x = self.data_x + self.train_x + self.val_x
         data.data_y = self.data_y + self.train_y + self.val_y
         data.test_x, data.test_y = self.test_x, self.test_y
@@ -52,6 +52,11 @@ class Data:
             if len(self.data_x[i]) < lowest:
                 lowest = len(self.data_x[i])
         print(lowest)
+
+    def training_data(self):
+        for i in range(len(self.data_x)):
+            self.train_x += self.data_x[i]
+            self.train_y += self.data_y[i]
 
     def reduce_data(self, indices):
         temp_x, temp_y = [], []
@@ -133,8 +138,8 @@ class Data:
         elif self.add_type == 'merge':
             temp_x = random.sample(self.train_x, len(self.train_x)//2)
             temp_y = random.sample(self.train_y, len(self.train_y) // 2)
-            self.train_x = temp_x
-            self.train_y = temp_y
+            self.train_x += temp_x
+            self.train_y += temp_y
         print('Data Balance: ' + str(Counter(self.train_y)))
         self.make_val_set()
 
@@ -221,7 +226,7 @@ class Data:
                 for index in indices:
                     bootstrap_x.append(self.train_x[index])
                     bootstrap_y.append(self.train_y[index])
-            data = Data(val_percentage)
+            data = Data(val_percentage, self.add_type)
             data.set_data(bootstrap_x, bootstrap_y)
             data.test_x, data.test_y = self.test_x, self.test_y
             data.data_x, data.data_y = self.data_x, self.data_y

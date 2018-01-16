@@ -30,6 +30,15 @@ class Model:
         model.set_optimise_params(self.learning_rate, self.beta1, self.beta2, self.epsilon, self.use_locking)
         return model
 
+    def redefine(self):
+        tf.reset_default_graph()
+        with tf.device('/device:GPU:0'):
+            self.X = tf.placeholder('float', [None] + self.input_shape, name='X')
+            self.Y = tf.placeholder('float', [None, self.num_classes], name='Y')
+            self.Drop = tf.placeholder('float', name='Dropout')
+            self.model = self.create_model()
+        self.losses = []
+
     def create_model(self):
         self.weights = {
             'c1': tf.Variable(tf.truncated_normal([3, 3, 3, 64])),
@@ -111,7 +120,7 @@ class Model:
         else:
             return optimiser.minimize(loss)
 
-    def converged(self, epochs, min_epochs=50, diff=0.5, converge_len=10):
+    def converged(self, epochs, min_epochs=10, diff=2.0, converge_len=10):
         if len(self.losses) > min_epochs and epochs == -1:
             losses = self.losses[-converge_len:]
             for loss in losses[: (converge_len - 1)]:
@@ -120,9 +129,9 @@ class Model:
             return True
         return False
 
-    def train(self, data, epochs=-1, batch_size=100, intervals=10):
+    def train(self, data, epochs=-1, batch_size=100, intervals=10, load=False):
         with tf.device('/cpu:0'):
-            train_data, test_data, val_data = data.get_datasets(4, 100, batch_size, batch_size * 10)
+            train_data, test_data, val_data = data.get_datasets(4, 1000, batch_size, batch_size * 1)
             train_batches, test_batches, val_batches = data.get_num_batches(batch_size, batch_size * 10)
 
             train_iterator = tf_data.Iterator.from_structure(train_data.output_types, train_data.output_shapes)
@@ -147,7 +156,7 @@ class Model:
 
         with tf.Session() as sess:
             sess.run(init)
-            if self.bootstrap:
+            if self.bootstrap or load:
                 saver.restore(sess, 'tmp/model.ckpt')
             epoch = 0
             while not self.converged(epochs) and epoch != epochs:

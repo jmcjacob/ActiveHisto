@@ -15,11 +15,12 @@ class Rand:
         model.bootstrap = bootstrap
         return model
 
-    def train(self, data, verbose, bootstrap, weights=None):
-        model = self.new_model(verbose, bootstrap)
-        if self.model.loss_weights is not None:
-            model.set_loss_params(weights=weights)
-        accuracy, f1_score = model.train(data)
+    def train(self, data, load):
+        # model = self.new_model(verbose, bootstrap)
+        # if self.model.loss_weights is not None:
+        #     model.set_loss_params(weights=weights)
+        self.model.redefine()
+        accuracy, f1_score = self.model.train(data, load=load)
         return accuracy, f1_score
 
     def update(self, update_size):
@@ -30,12 +31,14 @@ class Rand:
     def run(self, update_size):
         f1_scores = []
         accuracies = []
+        load = False
         while self.budget != self.questions:
-            acc, f1_score = self.train(self.data, True, False, weights=self.data.get_weights())
+            acc, f1_score = self.train(self.data, load)
             f1_scores.append(f1_score)
             accuracies.append(acc)
             self.update(update_size)
             self.questions += 1
+            load = True
         print('F1 Scores: ' + str(f1_scores))
         print('Accuracies: ' + str(accuracies))
         return f1_scores, accuracies

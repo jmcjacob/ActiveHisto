@@ -1,8 +1,11 @@
 import numpy as np
+import pandas as pd
 import tensorflow as tf
-from itertools import product
 from sklearn.metrics import f1_score
+from sklearn.metrics import roc_auc_score
 import tensorflow.contrib.data as tf_data
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report
 
 
 class Model:
@@ -23,6 +26,7 @@ class Model:
         self.bootstrap = bootstrap
         self.verbose = verbose
         self.losses = []
+        self.target_loss = 0.0
 
     def __copy__(self):
         model = Model(self.input_shape, self.num_classes, self.verbose)
@@ -38,6 +42,7 @@ class Model:
             self.Drop = tf.placeholder('float', name='Dropout')
             self.model = self.create_model()
         self.losses = []
+        self.target_loss = 0
 
     def create_model(self):
         self.weights = {
@@ -88,7 +93,7 @@ class Model:
         self.beta = beta
         self.loss_weights = weights
 
-    def set_optimise_params(self, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08, use_locking=False):
+    def set_optimise_params(self, learning_rate=0.0001, beta1=0.9, beta2=0.999, epsilon=1e-08, use_locking=False):
         self.learning_rate = learning_rate
         self.beta1 = beta1
         self.beta2 = beta2
@@ -120,16 +125,23 @@ class Model:
         else:
             return optimiser.minimize(loss)
 
-    def converged(self, epochs, min_epochs=10, diff=2.0, converge_len=10):
+    def converged(self, epochs, min_epochs=10, converge_len=10):
+        if len(self.losses) == 1:
+            self.target_loss = self.losses[0] * 0.015
         if len(self.losses) > min_epochs and epochs == -1:
+            # if self.losses[-1] < self.target_loss:
+            #     return True
+            # else:
+            #     return False
             losses = self.losses[-converge_len:]
             for loss in losses[: (converge_len - 1)]:
-                if abs(losses[-1] - loss) > diff:
+                if abs(losses[-1] - loss) > self.target_loss:
                     return False
             return True
-        return False
+        else:
+            return False
 
-    def train(self, data, epochs=-1, batch_size=100, intervals=10, load=False):
+    def train(self, data, epochs=-1, batch_size=100, intervals=1, load=False):
         with tf.device('/cpu:0'):
             train_data, test_data, val_data = data.get_datasets(4, 1000, batch_size, batch_size * 1)
             train_batches, test_batches, val_batches = data.get_num_batches(batch_size, batch_size * 10)
@@ -187,21 +199,21 @@ class Model:
                 saver.save(sess, 'tmp/model.ckpt')
                 sess.run(testing_init_op)
                 test_acc = 0
-                predictions, labels = [], []
+                predictions, prediction_scores, labels = [], [], []
                 for step in range(test_batches):
                     image_batch, label_batch = sess.run(test_next_batch)
-                    acc, y_pred = sess.run([accuracy, tf.nn.softmax(self.model)], feed_dict={self.X:image_batch,
-                                                                                             self.Y: label_batch,
-                                                                                             self.Drop: 1.})
-                    test_acc += acc
+                    y_pred = sess.run(tf.nn.softmax(self.model), feed_dict={self.X:image_batch, self.Y: label_batch,
+                                                                                                self.Drop: 1.})
                     for i in range(len(label_batch) - 1):
                         labels.append(np.argmax(label_batch[i]))
                         predictions.append(np.argmax(y_pred[i]))
-                accuracy = test_acc / test_batches
+                        prediction_scores.append(max(y_pred[i]))
                 f1 = f1_score(labels, predictions)
-                print('Model trained with an Accuracy: {:.4f}'.format(accuracy) + ' F1-Score: {:.4f}'.format(f1) + ' in ' +
-                      str(epoch) + ' epochs')
-                return accuracy, f1
+                roc = roc_auc_score(labels, prediction_scores)
+                accuracy = self.confusion_matrix(predictions, labels)
+                print('Model trained with an Accuracy: {:.4f}'.format(accuracy) + ' F1-Score: {:.4f}'.format(f1) +
+                      ' ROC: {:.4f}'.format(roc) + ' in ' + str(epoch) + ' epochs')
+                return accuracy, f1, roc
 
     def predict(self, data):
         slice_predictions = []
@@ -233,3 +245,18 @@ class Model:
                 print(slice_predictions[i])
 
         return slice_predictions
+
+    @staticmethod
+    def confusion_matrix(predictions, labels):
+        y_actu = labels
+        y_pred = predictions
+
+        p_labels = pd.Series(predictions)
+        t_labels = pd.Series(y_actu)
+        df_confusion = pd.crosstab(t_labels, p_labels, rownames=['Actual'], colnames=['Predicted'], margins=True)
+        accuracy = accuracy_score(y_true=y_actu, y_pred=y_pred, normalize=True)
+        print('\nAccuracy = ' + str(accuracy) + '\n')
+        print(df_confusion)
+        print(' ')
+        print(classification_report(y_actu, y_pred, digits=5))
+        return accuracy

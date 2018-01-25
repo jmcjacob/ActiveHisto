@@ -136,10 +136,10 @@ class Data:
             self.train_x = temp_x
             self.train_y = temp_y
         elif self.add_type == 'merge':
-            temp_x = random.sample(self.train_x, len(self.train_x)//2)
-            temp_y = random.sample(self.train_y, len(self.train_y) // 2)
-            self.train_x += temp_x
-            self.train_y += temp_y
+            temp_x += random.sample(self.train_x, len(self.train_x)//2)
+            temp_y += random.sample(self.train_y, len(self.train_y) // 2)
+            self.train_x = temp_x
+            self.train_y = temp_y
         print('Data Balance: ' + str(Counter(self.train_y)))
         self.make_val_set()
 

@@ -51,10 +51,11 @@ def rand():
     data.load_data(sys.argv[2])
     data.load_test_data(sys.argv[3])
 
-    #Train with random selection
-    data.set_random_balanced_data(int(sys.argv[5]))
+    # Train with random selection
+    data.set_random_balanced_data(50)
     model = Model([27, 27, 3], 2)
-    model.set_loss_params(weights=data.get_weights())
+    model.verbose = True
+    # model.set_loss_params(weights=data.get_weights())
     rand = Rand(data, model, 10)
     f1_scores, accurices = rand.run(int(sys.argv[5]))
     print('Random Selection\n', file=open('results.txt', 'a'))
@@ -70,9 +71,9 @@ def uncertainty():
     data.load_test_data(sys.argv[3])
 
     #Train with uncertanty selection
-    data.set_random_balanced_data(int(sys.argv[5]))
+    data.set_random_balanced_data(50)
     model = Model([27, 27, 3], 2)
-    model.set_loss_params(weights=data.get_weights())
+    # model.set_loss_params(weights=data.get_weights())
     uncertain = Uncertainty(data, model, 10)
     f1_scores, accurices = uncertain.run(int(sys.argv[5]))
     print('Uncertainty Selection\n', file=open('results.txt', 'a'))

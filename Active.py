@@ -86,7 +86,7 @@ class Active:
             predictions, acc, f1_score = self.train_predict(self.data, True, False, load=load)
             f1_scores.append(f1_score)
             accurices.append(acc)
-            shortlist = self.shortlist(predictions, 500)
+            shortlist = self.shortlist(predictions, 50)
             bootstraps = self.data.get_bootstraps(num_bootstraps, bootstrap_size, 0.2, False)
             bootstrap_predictions = []
             for i in range(num_bootstraps):

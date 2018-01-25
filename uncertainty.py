@@ -19,10 +19,10 @@ class Uncertainty:
         # if self.model.loss_weights is not None:
         #     model.set_loss_params(weights=weights)
         self.model.redefine()
-        accuracy, f1_score = self.model.train(data, load=load)
+        accuracy, f1_score, roc = self.model.train(data, load=load)
         print('Number of predictions: ' + str(len(data.data_y)))
         predictions = self.model.predict(data)
-        return predictions, accuracy, f1_score
+        return predictions, accuracy, f1_score, roc
 
     def update(self, predictions, update_size):
         regions = []
@@ -38,14 +38,17 @@ class Uncertainty:
     def run(self, update_size):
         f1_scores = []
         accuracies = []
+        rocs = []
         load = False
         while self.budget != self.questions:
-            predictions, acc, f1_score = self.train_predict(self.data, load)
+            predictions, acc, f1_score, roc = self.train_predict(self.data, load)
             f1_scores.append(f1_score)
             accuracies.append(acc)
+            rocs.append(roc)
             self.update(predictions, update_size)
             self.questions += 1
             load = True
         print('F1 Scores: ' + str(f1_scores))
         print('Accuracies: ' + str(accuracies))
+        print('ROC Areas: ' + str(rocs))
         return f1_scores, accuracies

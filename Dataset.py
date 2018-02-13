@@ -1,52 +1,158 @@
 import os
-import cv2
-import scipy.io as io
-from scipy.spatial import distance
+import random
+import numpy as np
+import tensorflow as tf
+from collections import Counter
+import tensorflow.contrib.data as tf_data
+from sklearn.model_selection import train_test_split
 
 
-def build_binary_detection_dataset(in_dir, out_dir, patch_size, region_size, steps):
-    if in_dir[-1] != '/':
-        in_dir += '/'
-    if out_dir[-1] != '/':
-        out_dir += '/'
-    border_size, count = patch_size // 2, 0
-    start = int(sorted(os.listdir(in_dir))[0].replace('img', ''))
-    region_count = 0
-    for img_num in range(start, start + len(os.listdir(in_dir))):
-        original_image = cv2.imread(in_dir + 'img' + str(img_num) + '/img' + str(img_num) + '.bmp')
-        border_image = cv2.copyMakeBorder(original_image, border_size, border_size, border_size, border_size,
-                                          cv2.BORDER_DEFAULT)
-        points = io.loadmat(in_dir + 'img' + str(img_num) + '/img' + str(img_num) + '_detection.mat')['detection']
-        for ri in range(border_size, original_image.shape[0] + border_size, region_size):
-            for rj in range(border_size, original_image.shape[1] + border_size, region_size):
-                if not os.path.exists(out_dir + str(region_count) + '/'):
-                    os.makedirs(out_dir + str(region_count) + '/hit/')
-                    os.makedirs(out_dir + str(region_count) + '/miss/')
-                for pi in range(ri, ri + region_size, steps):
-                    for pj in range(rj, rj + region_size, steps):
-                        min_dist = 1000
-                        for point in points:
-                            dist = distance.euclidean((point[0], point[1]),
-                                                      (pi - border_size, pj - border_size))
-                            if dist < min_dist:
-                                min_dist = dist
-                        if min_dist <= 3:
-                            label = '/hit/'
-                        elif min_dist > 20:
-                            label = '/miss/'
-                        else:
-                            continue
-                        patch = border_image[pj-border_size:pj+border_size + 1, pi-border_size:pi+border_size + 1]
-                        patches = [patch, cv2.flip(patch, 0), cv2.flip(patch, 1), cv2.flip(patch, 2),
-                                   cv2.GaussianBlur(patch, (3, 3), 0.25)]
-                        for p in range(len(patches)):
-                            cv2.imwrite(out_dir + str(region_count) + label + str(pi) + ',' + str(pj) + str(p) + '.bmp',
-                                        patches[p])
-                            count += 1
-                            if count % 100000 == 0:
-                                print(str(count) + ' Completed!')
-                region_count += 1
-                print('Region ' + str(region_count) + ' Completed!')
-        print('Image ' + str(img_num) + ' Completed!')
-    print('Done!')
-    print('Number of Patches: ' + str(count))
+class Data:
+    def __init__(self, validation_percentage):
+        self.train_x, self.train_y = [], []
+        self.test_x, self.test_y = [], []
+        self.val_x, self.val_y = [], []
+        self.data_x, self.data_y = [], []
+        self.validation_percentage = validation_percentage
+
+    def load_data(self, data_dir):
+        for image_dir in os.listdir(data_dir):
+            if os.path.isdir(data_dir + image_dir):
+                temp_x, temp_y = [], []
+                for image_file in os.listdir(data_dir + image_dir + '/positive'):
+                    temp_x.append(data_dir + image_dir + '/positive/' + image_file)
+                    temp_y.append(1)
+                for image_file in os.listdir(data_dir + image_dir + '/negative'):
+                    temp_x.append(data_dir + image_dir + '/negative/' + image_file)
+                    temp_y.append(0)
+                self.data_x.append(temp_x)
+                self.data_y.append(temp_y)
+
+    def set_test_data(self, percentage):
+        num_regions = int(len(self.data_y) * percentage)
+        for _ in range(num_regions):
+            index = random.randint(0, len(self.data_y) - 1)
+            self.test_x += self.data_x[index]
+            self.test_y += self.data_y[index]
+            del self.data_x[index]
+            del self.data_y[index]
+
+    def set_random_data(self, num_regions, balanced=False):
+        for _ in range(num_regions):
+            index = random.randint(0, len(self.data_y) - 1)
+            self.train_x += self.data_x[index]
+            self.train_y += self.data_y[index]
+            del self.data_x[index]
+            del self.data_y[index]
+        if balanced:
+            balance = Counter(self.train_y)
+            while balance[0] != balance[1]:
+                if balance[0] > balance[1]:
+                    index = random.choice([i for i, j in enumerate(self.train_y) if j == 0])
+                elif balance[0] < balance[1]:
+                    index = random.choice([i for i, j in enumerate(self.train_y) if j == 1])
+                del self.train_y[index]
+                del self.train_x[index]
+                balance = Counter(self.train_y)
+        self.set_validation_set(balanced=balanced)
+
+    def set_validation_set(self, balanced=False):
+        self.train_x += self.val_x
+        self.train_y += self.val_y
+        self.val_x, self.val_y = [], []
+        if not balanced:
+            self.train_x, self.val_x, self.train_y, self.val_y = train_test_split(self.train_x, self.train_y,
+                                                                                  test_size=self.validation_percentage)
+        else:
+            size = int(len(self.train_y) * self.validation_percentage)
+            if size % 2 == 1:
+                size -= 1
+            size = size // 2
+            for _ in range(size):
+                index = random.choice([i for i, j in enumerate(self.train_y) if j == 0])
+                self.val_x.append(self.train_x[index])
+                self.val_y.append(0)
+                del self.train_y[index]
+                del self.train_x[index]
+            for _ in range(size):
+                index = random.choice([i for i, j in enumerate(self.train_y) if j == 1])
+                self.val_x.append(self.train_x[index])
+                self.val_y.append(1)
+                del self.train_y[index]
+                del self.train_x[index]
+
+    def set_training_data(self, indices, balanced=False):
+        temp_x, temp_y = [], []
+        for index in sorted(indices, reverse=True):
+            temp_x += self.data_x[index]
+            temp_y += self.data_y[index]
+            self.data_x.pop(index)
+            self.data_y.pop(index)
+        if balanced:
+            balance = Counter(temp_y)
+            while balance[0] != balance[1]:
+                if balance[0] > balance[1]:
+                    index = random.choice([i for i, j in enumerate(temp_y) if j == 0])
+                elif balance[0] < balance[1]:
+                    index = random.choice([i for i, j in enumerate(temp_y) if j == 1])
+                del temp_y[index]
+                del temp_x[index]
+                balance = Counter(temp_y)
+        self.train_x += temp_x
+        self.train_y += temp_y
+        self.set_validation_set(balanced)
+
+    def get_num_batches(self, train_batch_size, test_batch_size):
+        num_train_batches = int(np.ceil(len(self.train_y) / train_batch_size))
+        num_test_batches = int(np.ceil(len(self.test_y) / test_batch_size))
+        num_val_batches = int(np.ceil(len(self.val_y) / test_batch_size))
+        return num_train_batches, num_test_batches, num_val_batches
+
+    def input_parser(self, image_path, label):
+        one_hot_label = tf.one_hot(tf.to_int32(label), 2)
+        image_file = tf.read_file(image_path)
+        image = tf.image.decode_image(image_file, channels=3)
+        return tf.cast(image, 'float'), one_hot_label
+
+    def get_datasets(self, num_threads, buffer_size, train_batch_size, test_batch_size):
+        train_images = tf.constant(np.asarray(self.train_x))
+        train_labels = tf.constant(np.asarray(self.train_y))
+        train_dataset = tf_data.Dataset.from_tensor_slices((train_images, train_labels))
+        train_dataset = train_dataset.map(self.input_parser, num_threads, buffer_size)
+
+        test_images = tf.constant(np.asarray(self.test_x))
+        test_labels = tf.constant(np.asarray(self.test_y))
+        test_dataset = tf_data.Dataset.from_tensor_slices((test_images, test_labels))
+        test_dataset = test_dataset.map(self.input_parser, num_threads, buffer_size)
+
+        val_images = tf.constant(np.asarray(self.val_x))
+        val_labels = tf.constant(np.asarray(self.val_y))
+        val_dataset = tf_data.Dataset.from_tensor_slices((val_images, val_labels))
+        val_dataset = val_dataset.map(self.input_parser, num_threads, buffer_size)
+
+        train_dataset = train_dataset.batch(train_batch_size)
+        test_dataset = test_dataset.batch(test_batch_size)
+        val_dataset = val_dataset.batch(test_batch_size)
+
+        return train_dataset.shuffle(buffer_size), test_dataset, val_dataset
+
+    def get_num_predict_batches(self, batch_size):
+        count = 0
+        for data in self.data_y:
+            count += len(data)
+        return int(np.ceil(count / batch_size))
+
+    def predict_input_parser(self, image_path):
+        image_file = tf.read_file(image_path)
+        image = tf.image.decode_image(image_file, channels=3)
+        return tf.cast(image, 'float')
+
+    def get_predictions_dataset(self, num_threads, buffer_size, batch_size):
+        indices, files = [], []
+        for slide in self.data_x:
+            files += slide
+            indices.append(len(files))
+        images = tf.constant(files)
+        predict_dataset = tf_data.Dataset.from_tensor_slices((images))
+        predict_dataset = predict_dataset.map(self.predict_input_parser, num_threads, buffer_size)
+        return predict_dataset.batch(batch_size), indices

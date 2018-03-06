@@ -11,8 +11,7 @@ class Model:
         self.input_shape = input_shape
         self.num_classes = num_classes
         self.verbose = verbose
-        self.losses = []
-        self.train_loss = 0.0
+        self.val_losses, self.train_losses = [], []
 
         with tf.device('/device:GPU:0'):
             self.X = tf.placeholder('float', [None] + input_shape, name='X')
@@ -59,20 +58,31 @@ class Model:
 
     def loss(self):
         with tf.device('/device:GPU:0'):
-            loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.model, labels=self.Y)
+            loss = tf.losses.hinge_loss(labels=self.Y, logits=self.model)
+            # loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.model, labels=self.Y)
         return loss
 
     def optimise(self, loss):
-        optimiser = tf.train.AdamOptimizer(learning_rate=0.0001)
+        optimiser = tf.train.AdamOptimizer(learning_rate=0.001)
         return optimiser.minimize(loss)
 
     def converged(self, epochs, epoch):
-        if epochs == -1 and len(self.losses) > 20:
-            losses = self.losses[-20:]
-            for loss in losses[: 19]:
-                if abs(losses[-1] - loss) > 0.1:
+        if epochs == -1 and len(self.val_losses) > 5:
+            if epoch >= 1000:
+                return False
+            else:
+                if epoch % 5 == 0:
+                    g_loss = 100 * ((self.val_losses[-1] / min(self.val_losses[:-1])) - 1)
+                    progress = 1000 * ((sum(self.train_losses[-6:-1]) / (5 * min(self.train_losses[-6:-1])))-1)
+                    print('Generalised Loss: {:.4f}'.format(g_loss))
+                    print('Training Progress : {:.4f}'.format(progress))
+                    print('Progress Quality: {:.4f}'.format(g_loss / progress))
+                    if abs(g_loss / progress) > 2:
+                        return False
+                    else:
+                        return True
+                else:
                     return True
-            return False
         elif epoch == epochs:
             return False
         else:
@@ -80,59 +90,59 @@ class Model:
 
     def train(self, data, dir, epochs=-1, batch_size=100, intervals=1):
         with tf.device('/cpu:0'):
-            train_data, test_data, val_data = data.get_datasets(4, 1000, batch_size, batch_size*10)
+            train_data, test_data = data.get_datasets(4, 1000, batch_size, batch_size*10)
             train_batches, test_batches, val_batches = data.get_num_batches(batch_size, batch_size*10)
 
             train_iterator = tf_data.Iterator.from_structure(train_data.output_types, train_data.output_shapes)
             train_next_batch = train_iterator.get_next()
             training_init_op = train_iterator.make_initializer(train_data)
 
-            val_iterator = tf_data.Iterator.from_structure(val_data.output_types, val_data.output_shapes)
-            val_next_batch = val_iterator.get_next()
-            val_init_op = val_iterator.make_initializer(val_data)
+            # val_iterator = tf_data.Iterator.from_structure(val_data.output_types, val_data.output_shapes)
+            # val_next_batch = val_iterator.get_next()
+            # val_init_op = val_iterator.make_initializer(val_data)
             saver = tf.train.Saver()
 
 
         with tf.device('/device:GPU:0'):
             loss = self.loss()
             optimiser = self.optimise(loss)
-            correct_pred = tf.equal(tf.argmax(self.model, 1), tf.argmax(self.Y, 1))
             init = tf.global_variables_initializer()
 
         with tf.Session() as sess:
             sess.run(init)
             epoch = 0
             if os.path.isdir(dir) and dir != 'supervised':
+                print('Loaded weights from ' + dir + '\n')
                 saver.restore(sess, dir + '/weights.ckpt')
             while self.converged(epochs, epoch):
                 sess.run(training_init_op)
-                train_loss = 0
+                train_loss = np.array([])
                 for step in range(train_batches):
                     image_batch, label_batch = sess.run(train_next_batch)
                     _, cost = sess.run([optimiser, loss], feed_dict={self.X: image_batch, self.Y: label_batch,
                                                                      self.drop: 0.5})
-                    train_loss += np.average(cost)
-                self.train_loss = train_loss / train_batches
+                    train_loss = np.append(train_loss, cost)
                 epoch += 1
-                sess.run(val_init_op)
-                val_loss, val_acc = 0, 0
-                predictions, labels = [], []
-                for step in range(val_batches):
-                    image_batch, label_batch = sess.run(val_next_batch)
-                    cost, y_pred = sess.run([loss, tf.nn.softmax(self.model)], feed_dict={self.X: image_batch,
-                                                                                  self.Y: label_batch, self.drop: 0.5})
-                    for i in range(len(label_batch) - 1):
-                        labels.append(np.argmax(label_batch[i]))
-                        predictions.append(np.argmax(y_pred[i]))
-                    val_loss += np.average(cost)
-                cmat = metrics.confusion_matrix(labels, predictions)
-                val_acc = np.mean(cmat.diagonal() / cmat.sum(axis=1))
-                self.losses.append(val_loss / val_batches)
+                # sess.run(val_init_op)
+                # val_loss, val_acc = np.array([]), 0
+                # predictions, labels = [], []
+                # for step in range(val_batches):
+                #     image_batch, label_batch = sess.run(val_next_batch)
+                #     cost, y_pred = sess.run([loss, tf.nn.softmax(self.model)], feed_dict={self.X: image_batch,
+                #                                                                   self.Y: label_batch, self.drop: 0.5})
+                #     for i in range(len(label_batch) - 1):
+                #         labels.append(np.argmax(label_batch[i]))
+                #         predictions.append(np.argmax(y_pred[i]))
+                #     val_loss = np.append(val_loss, cost)
+                # cmat = metrics.confusion_matrix(labels, predictions)
+                # val_acc = np.mean(cmat.diagonal() / cmat.sum(axis=1))
+                # self.val_losses.append(np.average(val_loss))
+                self.train_losses.append(np.average(train_loss))
                 if self.verbose and epoch % intervals == 0:
                     message = 'Epoch: ' + str(epoch).zfill(4)
-                    message += ' Training Loss: {:.4f}'.format(train_loss / train_batches)
-                    message += ' Validation Accuracy: {:.3f}'.format(val_acc)
-                    message += ' Validation Loss: {:.4f}'.format(val_loss / val_batches)
+                    message += ' Training Loss: {:.4f}'.format(np.average(train_loss))
+                    # message += ' Validation Accuracy: {:.3f}'.format(val_acc)
+                    # message += ' Validation Loss: {:.4f}'.format(np.average(val_loss))
                     print(message)
 
             saver.save(sess, dir + '/weights.ckpt')

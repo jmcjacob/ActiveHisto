@@ -46,15 +46,16 @@ class Data:
             del self.data_y[index]
         if balanced:
             balance = Counter(self.train_y)
-            while balance[0] != balance[1]:
-                if balance[0] > balance[1]:
-                    index = random.choice([i for i, j in enumerate(self.train_y) if j == 0])
-                elif balance[0] < balance[1]:
-                    index = random.choice([i for i, j in enumerate(self.train_y) if j == 1])
-                del self.train_y[index]
-                del self.train_x[index]
-                balance = Counter(self.train_y)
-        self.set_validation_set(balanced=balanced)
+            indices = []
+            if balance[0] > balance[1]:
+                number = balance[0] - balance[1]
+                indices = np.random.permutation([i for i, j in enumerate(self.train_y) if j == 0])[:number]
+            elif balance[0] < balance[1]:
+                number = balance[1] - balance[0]
+                indices = np.random.permutation([i for i, j in enumerate(self.train_y) if j == 1])[:number]
+            self.train_y = [i for j, i in enumerate(self.train_y) if j not in indices]
+            self.train_x = [i for j, i in enumerate(self.train_x) if j not in indices]
+        # self.set_validation_set(balanced=balanced)
 
     def set_validation_set(self, balanced=False):
         self.train_x += self.val_x
@@ -68,18 +69,14 @@ class Data:
             if size % 2 == 1:
                 size -= 1
             size = size // 2
-            for _ in range(size):
-                index = random.choice([i for i, j in enumerate(self.train_y) if j == 0])
-                self.val_x.append(self.train_x[index])
-                self.val_y.append(0)
-                del self.train_y[index]
-                del self.train_x[index]
-            for _ in range(size):
-                index = random.choice([i for i, j in enumerate(self.train_y) if j == 1])
-                self.val_x.append(self.train_x[index])
-                self.val_y.append(1)
-                del self.train_y[index]
-                del self.train_x[index]
+            indices = np.random.permutation([i for i, j in enumerate(self.train_y) if j == 0])[:size]
+            indices += np.random.permutation([i for i, j in enumerate(self.train_y) if j == 1])[:size]
+            indices = sorted(indices)
+
+            self.val_x += [i for j, i in enumerate(self.train_x) if j in indices]
+            self.val_y += [i for j, i in enumerate(self.train_y) if j in indices]
+            self.train_y = [i for j, i in enumerate(self.train_y) if j not in indices]
+            self.train_x = [i for j, i in enumerate(self.train_x) if j not in indices]
 
     def set_training_data(self, indices, balanced=False):
         temp_x, temp_y = [], []
@@ -100,7 +97,7 @@ class Data:
                 balance = Counter(temp_y)
         self.train_x += temp_x
         self.train_y += temp_y
-        self.set_validation_set(balanced)
+        # self.set_validation_set(balanced)
 
     def get_num_batches(self, train_batch_size, test_batch_size):
         num_train_batches = int(np.ceil(len(self.train_y) / train_batch_size))
@@ -125,16 +122,16 @@ class Data:
         test_dataset = tf_data.Dataset.from_tensor_slices((test_images, test_labels))
         test_dataset = test_dataset.map(self.input_parser, num_threads, buffer_size)
 
-        val_images = tf.constant(np.asarray(self.val_x))
-        val_labels = tf.constant(np.asarray(self.val_y))
-        val_dataset = tf_data.Dataset.from_tensor_slices((val_images, val_labels))
-        val_dataset = val_dataset.map(self.input_parser, num_threads, buffer_size)
+        # val_images = tf.constant(np.asarray(self.val_x))
+        # val_labels = tf.constant(np.asarray(self.val_y))
+        # val_dataset = tf_data.Dataset.from_tensor_slices((val_images, val_labels))
+        # val_dataset = val_dataset.map(self.input_parser, num_threads, buffer_size)
 
         train_dataset = train_dataset.batch(train_batch_size)
         test_dataset = test_dataset.batch(test_batch_size)
-        val_dataset = val_dataset.batch(test_batch_size)
+        # val_dataset = val_dataset.batch(test_batch_size)
 
-        return train_dataset.shuffle(buffer_size), test_dataset, val_dataset
+        return train_dataset.shuffle(buffer_size), test_dataset #, val_dataset.shuffle(buffer_size)
 
     def get_num_predict_batches(self, batch_size):
         count = 0

@@ -7,7 +7,7 @@ from ActiveRandom import ActiveRandom
 
 def random(data, model):
     active_random = ActiveRandom(data, model, 10)
-    return active_random.run(10)
+    return active_random.run(50)
 
 
 def plotting(title, values, start, incriment):
@@ -25,12 +25,12 @@ if __name__ == '__main__':
     if sys.argv[1] == 'supervised':
         f1_scores, accuracies, roc_areas, losses = [], [], [], []
         for i in range(10):
-            data = Data(0.1)
+            data = Data(0.2)
             data.load_data(sys.argv[2])
             data.set_test_data(0.2)
             data.set_random_data(len(data.data_y), True)
             model = Model([15, 15, 3], 2)
-            accuracy, f1_score, roc_area, loss = model.train(data, 'supervised')
+            accuracy, f1_score, roc_area, loss = model.train(data, 'supervised', epochs=100)
             accuracies.append(accuracy)
             f1_scores.append(f1_score)
             roc_areas.append(roc_area)
@@ -40,7 +40,7 @@ if __name__ == '__main__':
         print('ROCs: ' + str(roc_areas) + '\n')
         print('Losses: ' + str(losses))
     else:
-        data = Data(0.1)
+        data = Data(0.2)
         data.load_data(sys.argv[2])
         data.set_test_data(0.2)
         data.set_random_data(50, True)

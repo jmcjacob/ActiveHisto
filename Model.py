@@ -58,12 +58,12 @@ class Model:
 
     def loss(self):
         with tf.device('/device:GPU:0'):
-            loss = tf.losses.hinge_loss(labels=self.Y, logits=self.model)
+            loss = tf.losses.hinge_loss(labels=self.Y, logits=tf.nn.softmax(self.model))
             # loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.model, labels=self.Y)
         return loss
 
     def optimise(self, loss):
-        optimiser = tf.train.AdamOptimizer(learning_rate=0.001)
+        optimiser = tf.train.AdamOptimizer(learning_rate=0.01)
         return optimiser.minimize(loss)
 
     def converged(self, epochs, epoch):
